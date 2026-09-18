@@ -21,7 +21,8 @@ test('Cursor onboarding stays explicit, bilingual, and backed by the same Skill'
   assert.equal(english, englishMirror, 'English README mirrors must stay synchronized');
   assert.match(english, /Cursor, Claude Code, Codex CLI, and OpenCode/);
   assert.match(chinese, /Cursor、Claude Code、Codex CLI 和 OpenCode/);
-  for (const surface of [english, chinese, landing]) assert.ok(surface.includes(cursorCommand));
+  for (const surface of [english, chinese]) assert.ok(surface.includes(cursorCommand.replace('tt-a1i/archify', 'safwyls/rearchify')));
+  assert.ok(landing.includes(cursorCommand), 'upstream landing page retains its upstream install command');
   for (const surface of [english, chinese, start, landing]) {
     assert.doesNotMatch(surface, /skills use[^\n<]*--agent cursor/);
     assert.doesNotMatch(surface, /~\/\.cursor\/skills\/archify/);
@@ -38,12 +39,14 @@ test('Cursor onboarding stays explicit, bilingual, and backed by the same Skill'
   assert.doesNotMatch(start, /vendor-specific (?:renderer|schema|skill)/i);
 });
 
+import { gitTool } from './helpers/git-tool.mjs';
+
 test('the zero-dependency archive works from the canonical Cursor-visible agent path', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-cursor-package-'));
   const agentSkills = path.join(tmp, '.agents', 'skills');
   try {
     fs.mkdirSync(agentSkills, { recursive: true });
-    execFileSync('unzip', ['-q', path.join(repoRoot, 'archify.zip'), '-d', agentSkills]);
+    execFileSync(gitTool('unzip'), ['-q', path.join(repoRoot, 'archify.zip'), '-d', agentSkills]);
     const installed = path.join(agentSkills, 'archify');
     const cli = path.join(installed, 'bin', 'archify.mjs');
     const doctor = execFileSync(process.execPath, [cli, 'doctor'], { encoding: 'utf8' });

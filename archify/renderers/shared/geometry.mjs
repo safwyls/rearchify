@@ -2,7 +2,7 @@
 // pure; renderers own their layout tables and pass measured rects
 // ({x, y, width, height, cx, cy}) in.
 
-import { recordDiagnostic } from './diagnostics.mjs';
+import { recordDiagnostic } from './diagnostics-core.mjs';
 
 // In degraded mode (no ajv) a type-wrong top-level field reaches the renderer.
 // Coerce non-arrays to [] so the module-level Maps build without throwing and
@@ -946,7 +946,7 @@ export function cleanLabelRouteClearanceProblems({
 function qualityProfileForGate(profile, profileIsAuthoritative) {
   return profileIsAuthoritative
     ? profile
-    : process.env.ARCHIFY_QUALITY_PROFILE || profile;
+    : (typeof process !== 'undefined' ? process.env.ARCHIFY_QUALITY_PROFILE : undefined) || profile;
 }
 
 function collectEligibleRoutedRelations({ relations, endpointIds, pathFor }) {
@@ -1118,7 +1118,12 @@ function onSegment(a, b, c) {
   );
 }
 
-export function anchor(rect, side) {
+export function anchor(rect, side, offset) {
+  if (Number.isFinite(offset)) {
+    const fraction = Math.max(0, Math.min(1, offset));
+    if (side === 'left' || side === 'right') return [rect.x + (side === 'right' ? rect.width : 0), rect.y + rect.height * fraction];
+    if (side === 'top' || side === 'bottom') return [rect.x + rect.width * fraction, rect.y + (side === 'bottom' ? rect.height : 0)];
+  }
   switch (side) {
     case 'left': return [rect.x, rect.cy];
     case 'right': return [rect.x + rect.width, rect.cy];

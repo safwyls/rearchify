@@ -94,10 +94,11 @@ test('clean staging preserves index modes and strips repository-only package met
     write(root, 'archify/bin/executable.mjs', '#!/usr/bin/env node\n', 0o755);
     write(root, 'archify/runtime/test/required.dat', 'runtime fixture\n');
     git(root, ['add', 'archify']);
-
-    stageCleanSkill({ repoRoot: root, destination });
-
-    assert.equal(fs.statSync(path.join(destination, 'bin', 'executable.mjs')).mode & 0o777, 0o755);
+    git(root, ['update-index', '--chmod=+x', 'archify/bin/executable.mjs']);
+    const staged = stageCleanSkill({ repoRoot: root, destination });
+    assert.equal(staged.modes['bin/executable.mjs'], '100755');
+    // Windows cannot represent POSIX executable bits; the archive uses index modes.
+    if (process.platform !== 'win32') assert.equal(fs.statSync(path.join(destination, 'bin', 'executable.mjs')).mode & 0o777, 0o755);
     assert.equal(fs.existsSync(path.join(destination, 'test')), false);
     assert.equal(
       fs.readFileSync(path.join(destination, 'runtime', 'test', 'required.dat'), 'utf8'),

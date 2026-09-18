@@ -1,5 +1,43 @@
 # Viewer source
 
+`architecture-editor.js` is the architecture-only layout editor. It uses
+`archify/renderers/architecture/architecture-scene.mjs`, the same pure scene
+factory used by the CLI. `svg-helpers.mjs`, `brand-rendering.mjs`, and
+`diagnostics-core.mjs` provide its browser-safe dependencies. Node file access,
+brand capture, and diagnostic stderr handling stay in their CLI modules.
+
+Run `npm run generate:editor` from `archify/` after changing the editor or a scene
+dependency. The esbuild development dependency produces the committed
+`archify/assets/architecture-editor.js`; `npm run check:editor` checks freshness.
+The architecture CLI embeds the bundle as a self-contained data URL and includes
+the escaped source JSON and resolved brand artwork. No build tools or server are
+needed by installed skills or generated diagrams. Other diagram types do not
+include this bundle.
+
+The modal owns its own SVG and camera. Each edit recomputes the scene, including
+routes and frames; pointer release commits one undo transaction and runs layout
+checks. Apply rebuilds the reader from its startup document with the new canonical
+SVG and source, avoiding stale node/edge caches in reader modules. HTML downloads
+use the same clean startup snapshot and retain edit history, never modal elements
+or current reader overlays. Edited documents explicitly remain drafts pending CLI
+delivery checks. Tests cover browser interaction and JSON/HTML/CLI round trips.
+
+`architecture-path-edit.mjs` implements orthogonal route transactions: segment
+slides, bend moves, jog insertion, and node-to-pinned-route reconnection. The
+scene's `editGeometry()` returns exact coordinates rather than the rounded public
+CLI report. Pointer drags always derive from their initial geometry/spec snapshot
+so repeated move events cannot accumulate elbows. Editing writes ordinary `via`,
+endpoint-side, and `labelAt` fields; the renderer remains the source of displayed
+geometry and diagnostics. Hit rails and corner handles exist only in the modal.
+
+Node/path actions live in a viewport-clamped context menu with keyboard navigation
+and a transient relabel panel. Snapping and merging tolerances are measured in
+screen pixels, converted using the drag's SVG transform. Label snapping stores
+`labelSegment`/offsets; edits remap that attachment when route topology changes.
+`removeJog` simplifies both collapse directions and removes doubled-back spurs;
+nearby-corner merging applies it only around the dragged handle. Menu state,
+guides, and handles never enter saved SVG; label-snap preference persists in HTML.
+
 Edit `reader-layout.js` for Adaptive Reader Layout, `viewer-chrome-layout.js`
 for navigation clearance, `viewer-camera.js` for camera interactions and
 transactions, `semantic-radar.js` for the overview map, `motion-governor.js` for

@@ -69,6 +69,23 @@ test('architecture compare classifies authored facts separately from geometry an
   assert.deepEqual(boundaryReceipt.changes.boundaries.find((change) => change.label === 'Fraud edge').classifications, ['scope']);
 });
 
+test('endpoint-offset-only changes are reported as rerouted connections', () => {
+  for (const field of ['fromOffset', 'toOffset']) {
+    const base = read(baseFixture);
+    base.connections[0][field] = 0.5;
+    const head = structuredClone(base);
+    head.connections[0][field] = 0.25;
+    const receipt = compareArchitecture(base, head);
+    assert.equal(receipt.summary.connections.rerouted, 1);
+    assert.deepEqual(receipt.changes.connections, [{
+      id: base.connections[0].id,
+      base: { from: base.connections[0].from, to: base.connections[0].to, label: base.connections[0].label || '' },
+      head: { from: head.connections[0].from, to: head.connections[0].to, label: head.connections[0].label || '' },
+      status: 'rerouted', classifications: ['geometry'], changedFields: [`/${field}`],
+    }]);
+  }
+});
+
 test('legend-only changes are presentation changes and never topology changes', () => {
   const base = read(baseFixture);
   const head = read(baseFixture);

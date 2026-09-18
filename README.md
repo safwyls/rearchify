@@ -2,13 +2,9 @@
   <strong>English</strong> · <a href="./README_ZH.md">简体中文</a>
 </p>
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/31352?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-31352" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/31352" alt="Archify on Trendshift" width="250" height="55"/></a>
-</p>
-
 ![Archify product preview](docs/assets/archify-readme-hero.png)
 
-# Archify
+# Archify — Rearchify fork
 
 **Turn a codebase or system description into a polished, interactive system map — directly in chat.**
 
@@ -25,27 +21,26 @@ Archify is a Node.js rendering and validation system for Cursor, Claude Code, Co
 
 **Current development version:** `v2.17.0-dev.1`. See [Changelog](CHANGELOG.md#unreleased).
 
-**[Project page](https://tt-a1i.github.io/archify/)** · **[Scenario guide](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
+**[Upstream project page](https://tt-a1i.github.io/archify/)** · **[Scenario guide](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
 
 ```bash
-npx skills add tt-a1i/archify -g
+npx skills add safwyls/rearchify -g
 ```
 
 Using Cursor? Open the [agent-aware quick start](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture) for exact global and project commands.
 
 **No repository is required:** describe the system in any agent chat.
 
-## ❤️ Sponsors
+## Changes in this fork
 
-<table>
-<tr>
-  <td align="center" width="240"><a href="https://supercode.sh/?utm_source=archify"><img src="https://cdn.supercode.sh/sponsors/supercode-logo.png" alt="Supercode" width="200"/></a><br/><strong><a href="https://supercode.sh/?utm_source=archify">supercode.sh</a></strong></td>
-<td><a href="https://supercode.sh/?utm_source=archify">Supercode</a> sponsors Archify and enhances Codex and Cursor with token optimization, curated Skills, and spec-driven development. Archify is featured as a <a href="https://supercode.sh/en/skills/tt-a1i/archify/archify">Supercode Editor’s Choice</a> skill.<br/><br/><a href="https://supercode.sh/en/skills/tt-a1i/archify/archify"><img src="https://supercode.sh/badges/editors-choice.svg" alt="Supercode Editor’s Choice — Archify" width="240" height="55"/></a></td>
-</tr>
-<tr><td align="center" width="240"><a href="https://github.com/EverMind-AI/Raven"><img src="docs/assets/sponsors/evermind-archify-raven.png" alt="Archify × Raven" width="200" /></a><br/><strong><a href="https://github.com/EverMind-AI">EverMind</a> · <a href="https://github.com/EverMind-AI/Raven">Raven</a></strong></td><td>EverMind sponsors Archify and builds memory infrastructure for agents. Its <a href="https://github.com/EverMind-AI/Raven"><strong>Raven</strong></a> harness supports Archify as a Skill for verified, interactive system maps.</td></tr>
-</table>
+[Rearchify](https://github.com/safwyls/rearchify) is a fork of [Archify](https://github.com/tt-a1i/archify), under the MIT license. Hosted docs, demos, and DSH links below refer to upstream.
 
-> Want to sponsor Archify? [Contact us by email.](mailto:2801884530@qq.com)
+- **Offline architecture editing:** drag nodes, path segments, bends, endpoint attachments, and labels; snap to the grid or path, add/remove jogs, and restore automatic routing.
+- **Editable boundaries:** draw, resize, move, relabel, or delete fixed frames. Membership follows node moves; validation rejects inconsistent membership and preserves explicit rectangles.
+- **Save and resume:** undo/redo, save JSON or standalone HTML, or apply edits. Editor and CLI share rendering.
+- **Reliable integration:** delta reports include endpoint offsets; tests cover browser interaction, JSON round trips, diagnostics, and Windows portability.
+
+Open newly generated architecture HTML and choose **Edit layout**. Edits are drafts: run `validate` and `deliver` on saved JSON before sharing. See [editing controls](archify/references/viewer-runtime.md).
 
 ## See Archify in action
 
@@ -99,26 +94,26 @@ Open [`examples/web-app.html`](examples/web-app.html) locally to try the complet
 ### 1. Install
 
 ```bash
-npx skills add tt-a1i/archify -g
+npx skills add safwyls/rearchify -g
 ```
 
 For an explicit, non-interactive Cursor install:
 
 ```bash
-npx -y skills add tt-a1i/archify --skill archify --agent cursor --global --copy --yes
+npx -y skills add safwyls/rearchify --skill archify --agent cursor --global --copy --yes
 ```
 
 To try without installing:
 
 ```bash
-npx skills use tt-a1i/archify@archify --agent codex
+npx skills use safwyls/rearchify@archify --agent codex
 ```
 
 [DSH community opt-in](integrations/deepseek-harness/README.md): `dsh plugin --profile web add @tt-a1i/archify-dsh@0.1.0`
 
 The [agent switcher](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture) covers `cursor`, `codex`, `claude-code`, and `opencode`. For Raven's manual ZIP install, extract [`archify.zip`](archify.zip) into `~/.raven/workspace/skills`; it yields `~/.raven/workspace/skills/archify`. Raven is not a switcher target.
 
-Archify may GET the fixed stable manifest solely to show an optional reminder; it never downloads or installs updates. Successful checks wait about 72 hours (±20%); active use retries failures after 6, then 24 hours. The server sees normal HTTP metadata (IP and time), but receives no version, Agent, project data, prompts, account/device ID, or ETag. You decide whether and when to update. Set `ARCHIFY_UPDATE_CHECK_DISABLED=1` to disable networking and reminder-state writes.
+Archify may GET the fixed stable manifest solely to show an optional reminder; it never downloads or installs updates. Successful checks wait about 72 hours (±20%); active use retries failures after 6, then 24 hours. The server sees normal HTTP metadata (IP and time), but receives no version, Agent, project data, prompts, account/device ID, or ETag. You decide whether and when to update. Fork installs should set `ARCHIFY_UPDATE_CHECK_DISABLED=1` to disable upstream update reminders and their networking/state writes; update this fork from `safwyls/rearchify`.
 
 ### 2. Start from a description — no repository required
 
@@ -274,7 +269,7 @@ The complete generation and viewer contract lives in [`archify/SKILL.md`](archif
 - [Roadmap](ROADMAP.md)
 - [Generated Proof Lab](https://tt-a1i.github.io/archify/gallery.html)
 
-Automatic Mermaid parsing, general-purpose auto-layout, hosted sharing, and WYSIWYG editing are intentionally outside the current scope.
+Automatic Mermaid parsing, general-purpose auto-layout, and hosted sharing remain outside the current scope. Visual editing is limited to architecture layouts.
 
 ## License
 
@@ -282,8 +277,4 @@ Automatic Mermaid parsing, general-purpose auto-layout, hosted sharing, and WYSI
 
 ## Contributing
 
-Issues, pull requests, and real-world diagrams are welcome. Start with the [contribution guide](CONTRIBUTING.md), use the reproducible bug form for failures, or submit a validated diagram through the [community showcase form](https://github.com/tt-a1i/archify/issues/new?template=showcase.yml).&nbsp;·&nbsp;[LINUX&nbsp;DO](https://linux.do)
-
-## Star History
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-dark.svg" /><img alt="Star History" src="https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-light.svg" /></picture></p>
+Issues, pull requests, and real-world diagrams are welcome. Start with the [contribution guide](CONTRIBUTING.md), use the reproducible bug form for failures, or submit a validated diagram through the [community showcase form](https://github.com/safwyls/rearchify/issues/new?template=showcase.yml).

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gitTool } from './helpers/git-tool.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..');
@@ -217,9 +218,6 @@ test('README stays scannable without deleting the visual proof set', () => {
   for (const filename of ['README.md', 'README_EN.md', 'README_ZH.md']) {
     const readme = fs.readFileSync(path.join(repoRoot, filename), 'utf8');
     assert.ok(readme.split('\n').length <= 295, `${filename}: README grew beyond the scannable line budget`);
-    const supercode = readme.indexOf('https://supercode.sh/?utm_source=archify');
-    const evermind = readme.indexOf('docs/assets/sponsors/evermind-archify-raven.png');
-    assert.ok(supercode >= 0 && evermind > supercode, `${filename}: EverMind must follow Supercode`);
     assert.match(readme, filename === 'README_ZH.md' ? /不需要绑定代码库/ : /No repository is required/);
     for (const asset of commonAssets) {
       assert.ok(readme.includes(`docs/assets/${asset}`), `${filename}: visual proof ${asset} was removed`);
@@ -230,7 +228,6 @@ test('README stays scannable without deleting the visual proof set', () => {
   const wordCount = english.trim().split(/\s+/).length;
   const intro = english.slice(0, english.indexOf('![License]'));
   const introBullets = intro.match(/^- \*\*/gm) || [];
-  // Allow the restored EverMind sponsor description without cutting product documentation.
   assert.ok(wordCount <= 2125, `README.md is too verbose again (${wordCount} words)`);
   assert.ok(introBullets.length <= 8, `README.md has too many top-level capability bullets (${introBullets.length})`);
 
@@ -238,21 +235,19 @@ test('README stays scannable without deleting the visual proof set', () => {
   assert.ok(chinese.includes('docs/assets/claude-skills-settings.png'), 'README_ZH.md lost the Claude Skills setup image');
 });
 
-test('all README languages end with the self-hosted star history chart', () => {
-  const lightChart = 'https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-light.svg';
-  const darkChart = 'https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-dark.svg';
-  const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'star-history.yml'), 'utf8');
-
+test('fork READMEs identify their origin and do not inherit upstream popularity claims', () => {
   for (const filename of ['README.md', 'README_EN.md', 'README_ZH.md']) {
     const readme = fs.readFileSync(path.join(repoRoot, filename), 'utf8');
-    const sectionIndex = readme.lastIndexOf('## Star History');
-    const contributingIndex = Math.max(readme.indexOf('## Contributing'), readme.indexOf('## 参与贡献'));
-    assert.ok(sectionIndex > contributingIndex, `${filename}: Star History must follow Contributing`);
-    assert.ok(readme.includes(lightChart), `${filename}: missing light star history chart`);
-    assert.ok(readme.includes(darkChart), `${filename}: missing dark star history chart`);
-    assert.equal(readme.trimEnd().endsWith('</p>'), true, `${filename}: Star History must remain the final section`);
+    assert.match(readme, /https:\/\/github\.com\/safwyls\/rearchify/);
+    assert.match(readme, /https:\/\/github\.com\/tt-a1i\/archify/);
+    assert.match(readme, /skills add safwyls\/rearchify/);
+    assert.match(readme, /Edit layout/);
+    assert.doesNotMatch(readme, /trendshift|## Star History|## ❤️|#1 trending/i);
   }
+});
 
+test('star history workflow retains its pinned publishing configuration', () => {
+  const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'star-history.yml'), 'utf8');
   assert.match(workflow, /permissions:\n  contents: write/);
   assert.match(workflow, /narayann7\/star-history-action@[0-9a-f]{40}/);
   // Upstream PR #6 migrates setup-node to Node 24 without the v1.0.6 chart changes.
@@ -290,9 +285,9 @@ test('Star History publishing advances the data branch without a force push', ()
     const firstTemp = path.join(fixture, 'run-1');
     fs.mkdirSync(firstTemp);
     writeStarHistoryCharts(firstCheckout, 'v1');
-    execFileSync('bash', [publisher, 'star-history'], {
+    execFileSync(gitTool('bash'), [publisher.replaceAll('\\', '/'), 'star-history'], {
       cwd: firstCheckout,
-      env: { ...process.env, RUNNER_TEMP: firstTemp },
+      env: { ...process.env, RUNNER_TEMP: firstTemp.replaceAll('\\', '/') },
     });
     const firstCommit = git(fixture, '--git-dir', remote, 'rev-parse', 'refs/heads/star-history');
 
@@ -300,9 +295,9 @@ test('Star History publishing advances the data branch without a force push', ()
     const secondTemp = path.join(fixture, 'run-2');
     fs.mkdirSync(secondTemp);
     writeStarHistoryCharts(secondCheckout, 'v2');
-    execFileSync('bash', [publisher, 'star-history'], {
+    execFileSync(gitTool('bash'), [publisher.replaceAll('\\', '/'), 'star-history'], {
       cwd: secondCheckout,
-      env: { ...process.env, RUNNER_TEMP: secondTemp },
+      env: { ...process.env, RUNNER_TEMP: secondTemp.replaceAll('\\', '/') },
     });
     const secondCommit = git(fixture, '--git-dir', remote, 'rev-parse', 'refs/heads/star-history');
 

@@ -1,4 +1,4 @@
-import { throwDiagnosticError } from './diagnostics.mjs';
+import { throwDiagnosticError } from './diagnostics-core.mjs';
 import { rectsOverlap, segmentIntersectsRect } from './geometry.mjs';
 import { esc, textUnits } from './utils.mjs';
 import { translateMessage } from './i18n.mjs';

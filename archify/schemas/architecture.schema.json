@@ -134,15 +134,16 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["kind", "label", "wraps"],
+        "anyOf": [{ "required": ["rect"], "properties": { "rect": {} } }, { "properties": { "wraps": { "type": "array", "minItems": 1 } } }],
         "properties": {
           "kind": { "enum": ["region", "security-group"] },
           "label": { "type": "string", "minLength": 1 },
           "wraps": {
             "type": "array",
-            "minItems": 1,
             "items": { "$ref": "common.schema.json#/$defs/id" }
           },
-          "pad": { "type": "number", "minimum": 0 }
+          "pad": { "type": "number", "minimum": 0 },
+          "rect": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number", "exclusiveMinimum": 0 }, { "type": "number", "exclusiveMinimum": 0 }], "minItems": 4, "maxItems": 4 }
         }
       }
     },
@@ -160,6 +161,8 @@
           "variant": { "$ref": "common.schema.json#/$defs/variant" },
           "fromSide": { "$ref": "common.schema.json#/$defs/side" },
           "toSide": { "$ref": "common.schema.json#/$defs/side" },
+          "fromOffset": { "type": "number", "minimum": 0, "maximum": 1, "description": "Attachment fraction along the source side, measured from top or left." },
+          "toOffset": { "type": "number", "minimum": 0, "maximum": 1, "description": "Attachment fraction along the target side, measured from top or left." },
           "route": { "enum": ["auto", "straight", "orthogonal-h", "orthogonal-v"] },
           "via": {
             "type": "array",

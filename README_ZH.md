@@ -4,7 +4,7 @@
 
 ![Archify 主视觉](docs/assets/archify-readme-hero.png)
 
-# Archify
+# Archify — Rearchify fork
 
 **在对话里，把代码仓库或系统描述变成漂亮、可靠、可交互的系统地图。**
 
@@ -21,26 +21,25 @@ Archify 是一套基于 Node.js 的渲染与校验系统，并以 Agent Skill �
 
 **当前开发版本：** `v2.17.0-dev.1`。详见[版本历史](CHANGELOG.md#unreleased)。
 
-**[在线项目页](https://tt-a1i.github.io/archify/)** · **[场景选图指南](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
+**[上游在线项目页](https://tt-a1i.github.io/archify/)** · **[场景选图指南](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
 
 ```bash
-npx skills add tt-a1i/archify -g
+npx skills add safwyls/rearchify -g
 ```
 使用 Cursor？打开[可切换 Agent 的快速开始页](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture)，即可获得准确的全局或当前仓库安装命令。
 
 **不需要绑定代码库：**在任意 Agent 对话里描述系统即可。
 
-## ❤️ 赞助伙伴
+## 此分支的改进
 
-<table>
-<tr>
-  <td align="center" width="240"><a href="https://supercode.sh/?utm_source=archify"><img src="https://cdn.supercode.sh/sponsors/supercode-logo.png" alt="Supercode" width="200"/></a><br/><strong><a href="https://supercode.sh/?utm_source=archify">supercode.sh</a></strong></td>
-  <td><a href="https://supercode.sh/?utm_source=archify">Supercode</a> 赞助 Archify，通过 Token 优化、精选 Skills 和规范驱动开发增强 Codex 与 Cursor。Archify 已入选 <a href="https://supercode.sh/en/skills/tt-a1i/archify/archify">Supercode Editor’s Choice</a> 技能。<br/><br/><a href="https://supercode.sh/en/skills/tt-a1i/archify/archify"><img src="https://supercode.sh/badges/editors-choice.svg" alt="Supercode Editor’s Choice — Archify" width="240" height="55"/></a></td>
-</tr>
-<tr><td align="center" width="240"><a href="https://github.com/EverMind-AI/Raven"><img src="docs/assets/sponsors/evermind-archify-raven.png" alt="Archify × Raven" width="200" /></a><br/><strong><a href="https://github.com/EverMind-AI">EverMind</a> · <a href="https://github.com/EverMind-AI/Raven">Raven</a></strong></td><td>感谢 EverMind 赞助 Archify。EverMind 专注 Agent 记忆基础设施，旗下 <a href="https://github.com/EverMind-AI/Raven"><strong>Raven</strong></a> 已支持 Archify Skill，让 Raven 工作流可以直接生成经过验证的交互式系统地图。</td></tr>
-</table>
+[Rearchify](https://github.com/safwyls/rearchify) 是 [Archify](https://github.com/tt-a1i/archify) 的分支，保留 MIT 许可证与原项目署名。下文链接的在线文档、演示及 DSH 软件包属于上游项目。
 
-> 想赞助 Archify？[欢迎通过邮件联系我们。](mailto:2801884530@qq.com)
+- **离线架构编辑：**拖动节点、路径线段、转角、端点连接位置和标签；支持网格或路径吸附、添加与移除折弯，以及恢复自动布线。
+- **可编辑边界：**绘制、缩放、移动、重命名或删除固定边框。节点移动时同步成员关系；校验会拒绝不一致的成员列表，并保留显式矩形坐标。
+- **保存与继续编辑：**支持撤销/重做、保存 JSON、下载独立 HTML，以及将修改应用到阅读视图。浏览器编辑器与 CLI 共用渲染器。
+- **集成可靠性：**Delta 报告包含端点偏移变化；回归测试覆盖浏览器交互、JSON 往返、诊断与 Windows 测试兼容性。
+
+打开新生成的架构 HTML，选择 **Edit layout（编辑布局）**。编辑后的文件属于草稿：交付前请对保存的 JSON 重新运行 `validate` 和 `deliver`。详见[编辑控件](archify/references/viewer-runtime.md)。
 
 ## 看看 Archify 能做什么
 
@@ -94,24 +93,24 @@ Export 菜单支持复制 PNG，并下载静态或动态格式：
 ### 1. 安装
 
 ```bash
-npx skills add tt-a1i/archify -g
+npx skills add safwyls/rearchify -g
 ```
 
 显式、非交互地安装到 Cursor：
 
 ```bash
-npx -y skills add tt-a1i/archify --skill archify --agent cursor --global --copy --yes
+npx -y skills add safwyls/rearchify --skill archify --agent cursor --global --copy --yes
 ```
 
 如果只想临时体验：
 
 ```bash
-npx skills use tt-a1i/archify@archify --agent codex
+npx skills use safwyls/rearchify@archify --agent codex
 ```
 
 DeepSeek Harness（社区集成、显式启用）：运行 `dsh plugin --profile web add @tt-a1i/archify-dsh@0.1.0`；参见[兼容范围、限制与安全说明](integrations/deepseek-harness/README.md)。[Agent 切换器](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture)只为 `cursor`、`codex`、`claude-code` 和 `opencode` 生成命令。Raven 仅支持 ZIP 手动安装：将 [`archify.zip`](archify.zip) 解压到 `~/.raven/workspace/skills`，解压后会得到 `~/.raven/workspace/skills/archify`；Raven 不属于切换器目标。
 
-安装后的 Skill 包含一个低频、失败静默的发布检查，它最多只显示可选更新提醒，绝不会自行下载或安装更新。一次成功检查后，下次网络请求通常约在 72 小时（±20%）后发出；检查失败后，活跃使用可能在首次 6 小时、后续 24 小时退避到期时重试。请求只访问 `https://tt-a1i.github.io/archify/skill-updates/archify/stable.json`。服务端会自然获得 IP、请求时间和常规 HTTP 元数据；检查器不会发送本地版本、Agent、项目数据、用户输入、账户/设备标识，也不会保存或回传 ETag。是否更新以及何时更新始终由你决定。如需完全关闭检查（包括网络请求和提醒状态写入），请在 Agent 环境中设置 `ARCHIFY_UPDATE_CHECK_DISABLED=1`。
+安装后的 Skill 包含一个低频、失败静默的发布检查，它最多只显示可选更新提醒，绝不会自行下载或安装更新。一次成功检查后，下次网络请求通常约在 72 小时（±20%）后发出；检查失败后，活跃使用可能在首次 6 小时、后续 24 小时退避到期时重试。请求只访问 `https://tt-a1i.github.io/archify/skill-updates/archify/stable.json`。服务端会自然获得 IP、请求时间和常规 HTTP 元数据；检查器不会发送本地版本、Agent、项目数据、用户输入、账户/设备标识，也不会保存或回传 ETag。是否更新以及何时更新始终由你决定。此分支建议在 Agent 环境中设置 `ARCHIFY_UPDATE_CHECK_DISABLED=1`，关闭上游更新提醒、网络请求和状态写入；请从 `safwyls/rearchify` 更新本分支。
 
 ### 2. 直接从描述开始——不需要代码库
 
@@ -277,7 +276,7 @@ Claude.ai 中的上传入口：
 - [路线图](ROADMAP.md)
 - [自动生成的 Proof Lab](https://tt-a1i.github.io/archify/gallery.html)
 
-自动 Mermaid Parser、通用自动布局、托管分享服务和 WYSIWYG 编辑器目前都不在产品范围内。
+自动 Mermaid Parser、通用自动布局与托管分享服务仍不属于当前范围。可视化编辑仅支持架构布局。
 
 ## License
 
@@ -285,10 +284,6 @@ Claude.ai 中的上传入口：
 
 ## 参与贡献
 
-欢迎提交 Issue、Pull Request 和真实场景图。请先阅读[贡献指南](CONTRIBUTING.md)；遇到问题时使用可复现 Bug 表单，也可以通过[社区 Showcase 表单](https://github.com/tt-a1i/archify/issues/new?template=showcase.yml)提交已验证成品。
+欢迎提交 Issue、Pull Request 和真实场景图。请先阅读[贡献指南](CONTRIBUTING.md)；遇到问题时使用可复现 Bug 表单，也可以通过[社区 Showcase 表单](https://github.com/safwyls/rearchify/issues/new?template=showcase.yml)提交已验证成品。
 
-较大的功能或行为调整请先通过 Issue 对齐价值、兼容边界和非目标，再基于最新 `main` 开发。一个 PR 尽量只解决一个问题；核心代码和回归测试先行，生成物最后统一重建。Archify 坚持 Agent-first，优先完善稳定的机器可读诊断和现有权威合同，避免新增容易与 CLI 漂移的重复说明。&nbsp;·&nbsp;[LINUX&nbsp;DO](https://linux.do)
-
-## Star History
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-dark.svg" /><img alt="Star History" src="https://raw.githubusercontent.com/tt-a1i/archify/star-history/assets/star-history-light.svg" /></picture></p>
+较大的功能或行为调整请先通过 Issue 对齐价值、兼容边界和非目标，再基于最新 `main` 开发。一个 PR 尽量只解决一个问题；核心代码和回归测试先行，生成物最后统一重建。Archify 坚持 Agent-first，优先完善稳定的机器可读诊断和现有权威合同，避免新增容易与 CLI 漂移的重复说明。

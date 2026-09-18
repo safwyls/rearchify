@@ -5,7 +5,8 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileSymlinkSkip } from './helpers/symlink-support.mjs';
 import {
   createHorizontalRankMapper,
   migrateWorkflowDocument,
@@ -33,7 +34,7 @@ function sha256(value) {
 
 function runMigration(source, destination, { importModule, env } = {}) {
   return spawnSync(process.execPath, [
-    ...(importModule ? ['--import', importModule] : []),
+    ...(importModule ? ['--import', pathToFileURL(importModule).href] : []),
     cli,
     'migrate',
     'workflow',
@@ -581,7 +582,7 @@ test('workflow migration rejects the source path as its destination without chan
   assert.ok(failure.diagnostics[0].supportedFixes.some((fix) => /different.*destination/i.test(fix)));
 });
 
-test('workflow migration reports a cyclic-symlink destination as structured JSON', () => {
+test('workflow migration reports a cyclic-symlink destination as structured JSON', { skip: fileSymlinkSkip() }, () => {
   const source = copyFixture('symlink-cycle-source.workflow.json');
   const destination = path.join(tmp, 'migration-cycle-a.workflow.json');
   const otherLink = path.join(tmp, 'migration-cycle-b.workflow.json');

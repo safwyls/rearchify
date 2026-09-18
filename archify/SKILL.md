@@ -117,6 +117,16 @@ Never start preview by default. Read `references/delivery-contract.md` when usin
 
 ## Optional viewer capabilities
 
+Architecture HTML includes **Edit layout**: drag nodes with optional grid snapping,
+drag path segments/corners and relationship labels, right-click for relabeling or
+jog/route actions, undo/redo, and save JSON or standalone HTML. Labels can snap to
+their path, and nearby adjacent corners merge. Node moves keep adjoining manual bends orthogonal.
+Automatic connectors and wrapping boundaries use the same renderer as the CLI.
+Preserve the user's saved JSON when continuing an edited diagram. Browser layout
+checks do not replace delivery acceptance: edited HTML is a draft until its saved
+JSON passes `validate` and `deliver` again. Existing HTML needs regeneration to gain
+the editor. See `references/viewer-runtime.md` for editing controls and limitations.
+
 Generated HTML already contains theme switching, pan/zoom, search, focus, relationship tracing, semantic views, presentation, and truthful exports. These are reader capabilities, not extra authoring work. `meta.animation: "trace"` is opt-in; `meta.views` is optional and should contain at most five curated chapters.
 
 Read `references/viewer-runtime.md` only when the user explicitly asks for Share Cards, Route/Reach cards, motion, guided stories, deep links, presentation, search/focus, or another Viewer Runtime feature.

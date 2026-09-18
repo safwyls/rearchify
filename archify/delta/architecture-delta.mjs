@@ -162,9 +162,9 @@ const COMPONENT_FIELDS = {
 const CONNECTION_FIELDS = {
   topology: ['from', 'to'],
   semantic: ['label', 'variant'],
-  geometry: ['fromSide', 'toSide', 'route', 'via', 'labelAt', 'labelDx', 'labelDy', 'labelSegment', 'width'],
+  geometry: ['fromSide', 'toSide', 'fromOffset', 'toOffset', 'route', 'via', 'labelAt', 'labelDx', 'labelDy', 'labelSegment', 'width'],
 };
-const BOUNDARY_FIELDS = { scope: ['wraps'], geometry: ['pad'] };
+const BOUNDARY_FIELDS = { scope: ['wraps'], geometry: ['pad', 'rect'] };
 
 function statusFor(classifications, kind) {
   if (classifications.some((value) => ['topology', 'semantic', 'scope'].includes(value))) return 'changed';

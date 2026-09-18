@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { findChrome as findInstalledChrome } from '../archify/bin/visual-check.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
@@ -65,6 +66,10 @@ function executable(file) {
 }
 
 function commandPath(command) {
+  if (process.platform === 'win32') {
+    const result = spawnSync('where.exe', [command], { encoding: 'utf8', windowsHide: true });
+    return result.status === 0 ? result.stdout.trim().split(/\r?\n/)[0] : null;
+  }
   const result = spawnSync('sh', ['-c', 'command -v "$1"', 'archify-showcase', command], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
@@ -73,6 +78,7 @@ function commandPath(command) {
 }
 
 function findChrome() {
+  if (process.platform === 'win32') return findInstalledChrome();
   const candidates = [
     process.env.ARCHIFY_CHROME,
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -329,7 +335,7 @@ async function main() {
     const receipt = {
       schemaVersion: 1,
       generator: 'scripts/build-readme-showcase.mjs',
-      output: path.relative(repoRoot, outputPath),
+      output: path.relative(repoRoot, outputPath).split(path.sep).join('/'),
       width,
       height,
       fps,

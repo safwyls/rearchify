@@ -24,11 +24,14 @@
     "build:start": "node ../scripts/build-start.mjs ../docs/start.html",
     "build:readme-showcase": "node ../scripts/build-readme-showcase.mjs",
     "test:webm": "node test/webm-artifact.smoke.mjs && node --test test/site-language-integration.mjs",
-    "test": "npm run check:viewer && npm run check:brand-marks && npm run check:validators && npm run check:release-identity && node test/golden.mjs && node ../scripts/run-tests.mjs",
-    "render:examples": "node scripts/render-examples.mjs ../examples"
+    "test": "npm run check:editor && npm run check:viewer && npm run check:brand-marks && npm run check:validators && npm run check:release-identity && node test/golden.mjs && node ../scripts/run-tests.mjs",
+    "render:examples": "node scripts/render-examples.mjs ../examples",
+    "generate:editor": "node ../scripts/generate-editor.mjs",
+    "check:editor": "node ../scripts/generate-editor.mjs --check"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
+    "esbuild": "^0.28.2",
     "parse5": "7.3.0",
     "saxes": "6.0.0",
     "simple-icons": "16.28.0"

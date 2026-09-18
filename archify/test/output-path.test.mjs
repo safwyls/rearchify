@@ -1,3 +1,4 @@
+import { fileSymlinkSkip } from './helpers/symlink-support.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -99,7 +100,7 @@ test('compare rejects case-only future targets before input work when the direct
   assert.equal(receipt.stage, 'prepare');
 });
 
-test('render reports an output symlink cycle as a structured output diagnostic', () => {
+test('render reports an output symlink cycle as a structured output diagnostic', { skip: fileSymlinkSkip() }, () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-cycle-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'cycle-a.html');
@@ -125,7 +126,7 @@ test('render reports an output symlink cycle as a structured output diagnostic',
   assert.ok(failure.diagnostics[0].supportedFixes.length > 0);
 });
 
-test('render rejects an output symlink that aliases its JSON input', () => {
+test('render rejects an output symlink that aliases its JSON input', { skip: fileSymlinkSkip() }, () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-render-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'diagram.html');
@@ -193,7 +194,7 @@ test('render rejects a meta.output that escapes through a directory symlink', ()
   const outside = path.join(parent, 'outside');
   fs.mkdirSync(cwd);
   fs.mkdirSync(outside);
-  fs.symlinkSync(outside, path.join(cwd, 'linked'), 'dir');
+  fs.symlinkSync(outside, path.join(cwd, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(outside, 'authored.html');
   const source = JSON.parse(fs.readFileSync(workflowFixture, 'utf8'));
@@ -222,7 +223,7 @@ test('render requires a meta.output target with an html extension', () => {
   assert.equal(fs.existsSync(output), false);
 });
 
-test('render rejects a meta.output symlink that resolves to a non-html target', () => {
+test('render rejects a meta.output symlink that resolves to a non-html target', { skip: fileSymlinkSkip() }, () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-extension-link-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const target = path.join(cwd, 'authored.json');
@@ -245,7 +246,7 @@ test('deliver rejects a future-path alias of its JSON input with a structured di
   const realDirectory = path.join(cwd, 'real');
   const linkedDirectory = path.join(cwd, 'linked');
   fs.mkdirSync(realDirectory);
-  fs.symlinkSync(realDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(realDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   const input = path.join(realDirectory, 'diagram.workflow.json');
   const output = path.join(linkedDirectory, 'diagram.workflow.json');
   const source = fs.readFileSync(workflowFixture);
@@ -300,7 +301,7 @@ console.log(JSON.stringify({
   const linkedDirectory = path.join(cwd, 'linked-output');
   fs.mkdirSync(inputDirectory);
   fs.mkdirSync(initialOutputDirectory);
-  fs.symlinkSync(initialOutputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(initialOutputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   const input = path.join(inputDirectory, 'diagram.html');
   const output = path.join(linkedDirectory, 'diagram.html');
   const source = Buffer.from('{"meta":{"title":"race input"}}');
@@ -332,7 +333,7 @@ console.log(JSON.stringify({
   const candidateRelative = path.relative(linkedDirectory, candidatePath);
   fs.mkdirSync(path.dirname(path.join(inputDirectory, candidateRelative)), { recursive: true });
   fs.unlinkSync(linkedDirectory);
-  fs.symlinkSync(inputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(inputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
 
   const status = await new Promise((resolve) => child.once('close', resolve));
 
@@ -348,7 +349,7 @@ test('compare rejects an artifact path that aliases either architecture input', 
   const realDirectory = path.join(cwd, 'real');
   const linkedDirectory = path.join(cwd, 'linked');
   fs.mkdirSync(realDirectory);
-  fs.symlinkSync(realDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(realDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   const base = path.join(realDirectory, 'review.html');
   const output = path.join(linkedDirectory, 'review.html');
   const baseSource = fs.readFileSync(baseFixture);
@@ -383,7 +384,7 @@ test('compare rejects a receipt path that aliases either architecture input', ()
   assert.equal(fs.existsSync(output), false);
 });
 
-test('compare rejects a dangling receipt symlink to the future artifact path', () => {
+test('compare rejects a dangling receipt symlink to the future artifact path', { skip: fileSymlinkSkip() }, () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-pair-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
@@ -433,7 +434,7 @@ test('the shared renderer rechecks its guarded output immediately before writing
   const linkedDirectory = path.join(cwd, 'linked-output');
   fs.mkdirSync(inputDirectory);
   fs.mkdirSync(initialOutputDirectory);
-  fs.symlinkSync(initialOutputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(initialOutputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   const input = path.join(inputDirectory, 'diagram.workflow.html');
   const output = path.join(linkedDirectory, 'diagram.workflow.html');
   const source = fs.readFileSync(workflowFixture);
@@ -446,7 +447,7 @@ test('the shared renderer rechecks its guarded output immediately before writing
     argv: ['node', 'render-workflow.mjs', input, output],
   });
   fs.unlinkSync(linkedDirectory);
-  fs.symlinkSync(inputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(inputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
 
   assert.throws(
     () => writeDiagram({
@@ -526,7 +527,7 @@ export const validateArchitectureDeltaHtml = () => ({ checksPassed: 1, checkCoun
   const linkedDirectory = path.join(cwd, 'linked-output');
   fs.mkdirSync(inputDirectory);
   fs.mkdirSync(initialOutputDirectory);
-  fs.symlinkSync(initialOutputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(initialOutputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   const base = path.join(inputDirectory, 'diagram.html');
   const head = path.join(cwd, 'head.json');
   const output = path.join(linkedDirectory, 'diagram.html');
@@ -560,7 +561,7 @@ export const validateArchitectureDeltaHtml = () => ({ checksPassed: 1, checkCoun
   const candidateRelative = path.relative(linkedDirectory, candidatePath);
   fs.mkdirSync(path.dirname(path.join(inputDirectory, candidateRelative)), { recursive: true });
   fs.unlinkSync(linkedDirectory);
-  fs.symlinkSync(inputDirectory, linkedDirectory, 'dir');
+  fs.symlinkSync(inputDirectory, linkedDirectory, process.platform === 'win32' ? 'junction' : 'dir');
 
   const status = await new Promise((resolve) => child.once('close', resolve));
 

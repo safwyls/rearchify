@@ -474,7 +474,9 @@ test('cli: deliver XML guard parses markup instead of scanning attribute-like te
   );
 });
 
-test('cli: preview runs from an installed skill without node_modules and exits cleanly', { timeout: 30000 }, async () => {
+test('cli: preview runs from an installed skill without node_modules and exits cleanly', {
+  timeout: 30000, skip: process.platform === 'win32' ? 'Windows child.kill terminates the process without delivering POSIX SIGTERM' : false,
+}, async () => {
   const installedRoot = path.join(tmp, 'installed-preview-skill');
   copyInstalledSkill(installedRoot);
   const installedCli = path.join(installedRoot, 'bin/archify.mjs');

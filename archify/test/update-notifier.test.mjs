@@ -1,3 +1,4 @@
+import { fileSymlinkSkip } from './helpers/symlink-support.mjs';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -351,7 +352,10 @@ function options(testFixture, fetchImpl, overrides = {}) {
     fetchImpl,
     now: () => baseTime,
     random: () => 0.5,
-    timeoutMs: 50,
+    // Concurrency tests hold mock requests open while racing filesystem work.
+    // Their correctness must not depend on completing disk I/O within 50 ms.
+    // The bounded-timeout test supplies its own short deadline explicitly.
+    timeoutMs: 2_000,
     ...overrides,
   };
 }
@@ -1035,7 +1039,7 @@ test('a committed cache FIFO is ignored without blocking the update check', (t) 
   assertUnsafeCacheStateIsIgnored(testFixture);
 });
 
-test('a committed cache state symlink is ignored without following its target', (t) => {
+test('a committed cache state symlink is ignored without following its target', { skip: fileSymlinkSkip() }, (t) => {
   const testFixture = fixture();
   t.after(() => fs.rmSync(testFixture.root, { recursive: true, force: true }));
   const cacheStatePath = statePath(testFixture);
@@ -2586,8 +2590,8 @@ test('a stale corrupt operation is fenced without exposing a failure', async (t)
   assert.equal(fs.existsSync(operationPath(testFixture, 'fenced', 1n)), true);
 });
 
-test('malformed active-claim shapes recover after the hard lease', async () => {
-  for (const shape of ['file', 'symlink', 'owner-directory']) {
+for (const shape of ['file', 'symlink', 'owner-directory']) {
+  test(`malformed active-claim ${shape} recovers after the hard lease`, { skip: shape === 'symlink' ? fileSymlinkSkip() : false }, async () => {
     const testFixture = fixture();
     try {
       const directory = stateDirectory(testFixture);
@@ -2623,8 +2627,8 @@ test('malformed active-claim shapes recover after the hard lease', async () => {
     } finally {
       fs.rmSync(testFixture.root, { recursive: true, force: true });
     }
-  }
-});
+  });
+}
 
 test('a delayed corrupt-claim retirement cannot move a successor active claim', async (t) => {
   const testFixture = fixture();
@@ -2775,7 +2779,7 @@ test('a forged retirement symlink cannot move an active claim outside its cache 
 
   const outside = path.join(testFixture.root, 'outside');
   fs.mkdirSync(outside);
-  fs.symlinkSync(outside, path.join(stateDirectory(testFixture), 'retired-claim-1'));
+  fs.symlinkSync(outside, path.join(stateDirectory(testFixture), 'retired-claim-1'), process.platform === 'win32' ? 'junction' : 'dir');
   const refreshOptions = options(testFixture, fetchImpl, {
     now: () => baseTime + (73 * 60 * 60 * 1_000),
   });
