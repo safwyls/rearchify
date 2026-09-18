@@ -1,6 +1,6 @@
 ---
 name: archify
-description: Create polished, validated architecture, workflow, sequence, data-flow, and lifecycle/state diagrams as explorable standalone HTML with inline SVG, dark/light themes, optional trace motion, and PNG/JPEG/WebP/SVG/WebM export. Accept plain-language requirements or pasted Mermaid flowchart, sequenceDiagram, and stateDiagram input; inspect repository evidence when the diagram must reflect real code. Use when the user asks to visualize system architecture, infrastructure, cloud/security/network topology, technical workflows, API call sequences, request lifecycles, data pipelines, ETL/ELT, data lineage, state machines, or to convert/beautify Mermaid.
+description: Create polished, validated architecture, workflow, sequence, data-flow, and lifecycle/state diagrams as explorable standalone HTML with inline SVG, dark/light themes, optional trace motion, and PNG/JPEG/WebP/SVG/WebM export. Accept plain-language requirements or pasted Mermaid flowchart, sequenceDiagram, and stateDiagram input; inspect repository evidence when the diagram must reflect real code. Use when the user asks to visualize system architecture, infrastructure, cloud/security/network topology, technical workflows, API call sequences, request lifecycles, data pipelines, ETL/ELT, data lineage, state machines, or to convert/beautify Mermaid. Also use for /rearchify requests to refresh existing diagram HTML with this fork.
 license: MIT
 metadata:
   version: "2.17"
@@ -11,6 +11,15 @@ metadata:
 # Archify
 
 Create a self-contained, interactive HTML diagram from a small typed JSON specification. Static output is the default; enable motion only when the user asks for a demo or presentation.
+
+## Refresh existing HTML
+
+For `/rearchify <source.json or existing.html> [output.html]`, follow
+[the refresh workflow](references/rearchify.md) instead of the fresh-authoring
+and visual-polish loops below. Redeliver the existing source with this fork to
+add **Edit layout** to architecture HTML; stop on validation failure without
+redesigning the diagram. Copilot users can install `prompts/rearchify.prompt.md`
+in their workspace's `.github/prompts/` for a native `/rearchify` command.
 
 ## Fast authoring path
 

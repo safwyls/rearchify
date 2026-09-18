@@ -27,7 +27,7 @@ Archify is a Node.js rendering and validation system for Cursor, Claude Code, Co
 npx skills add safwyls/rearchify -g
 ```
 
-Using Cursor? Open the [agent-aware quick start](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture) for exact global and project commands.
+Already using upstream Archify? Follow [Replace an existing Archify installation](#replace-an-existing-archify-installation) below. The upstream quick-start page installs upstream Archify.
 
 **No repository is required:** describe the system in any agent chat.
 
@@ -41,6 +41,55 @@ Using Cursor? Open the [agent-aware quick start](https://tt-a1i.github.io/archif
 - **Reliable integration:** delta reports include endpoint offsets; tests cover browser interaction, JSON round trips, diagnostics, and Windows portability.
 
 Open newly generated architecture HTML and choose **Edit layout**. Edits are drafts: run `validate` and `deliver` on saved JSON before sharing. See [editing controls](archify/references/viewer-runtime.md).
+
+## Replace an existing Archify installation
+
+The fork is called **Rearchify**, but the installed skill is still named **`archify`**, and the CLI remains `bin/archify.mjs`. Replace the upstream package in the same agent and scope; do not rename its folder to `rearchify` or keep competing upstream and fork copies active.
+
+For a global installation managed by `skills`:
+
+```bash
+npx skills remove archify --global
+npx skills add safwyls/rearchify --skill archify --global
+```
+
+Select the agents you previously used. For a project installation, run the same commands from that project **without `--global`**. If both scopes contain Archify, replace or remove the upstream copy in each relevant scope so the agent cannot select an old version. See the [skills CLI documentation](https://github.com/vercel-labs/skills#readme) for agent selection options.
+
+For a manual ZIP installation, back up any custom files and diagrams stored inside the installed skill folder, move the old `archify` folder outside the agent's skill search directories, and extract this fork's [archify.zip](archify.zip) into the same skills directory. Replace the whole package, including its renderer and assets; replacing only `SKILL.md` does not add the editor.
+
+Reload your agent or start a new session, then confirm the loaded `archify/SKILL.md` contains **Refresh existing HTML** and `references/rearchify.md` exists. Set `ARCHIFY_UPDATE_CHECK_DISABLED=1` in the environment used to launch your agent to disable upstream update reminders. Get future fork updates from `safwyls/rearchify`; the upstream quick-start and DSH links elsewhere in this README do not install this fork.
+
+Existing JSON files remain the source of your diagrams. **Installing the fork does not update HTML you already generated**; refresh each desired diagram with `/rearchify` below.
+
+## Refresh old diagrams with `/rearchify`
+
+`/rearchify` asks the agent to rerun `deliver` with this fork's renderer. Architecture HTML gains **Edit layout**, letting you move nodes and adjust paths locally without model calls. Other diagram types can be regenerated, but do not gain the architecture editor.
+
+In **Copilot Chat in VS Code**, copy the installed skill's `prompts/rearchify.prompt.md` (or this [command template](archify/prompts/rearchify.prompt.md)) into your diagram workspace as `.github/prompts/rearchify.prompt.md`. The fork repository already includes a command wrapper. Skill installation alone does not register this additional slash command. See [VS Code prompt files](https://code.visualstudio.com/docs/agent-customization/prompt-files).
+
+Then run in chat:
+
+```text
+/rearchify diagrams/system.architecture.json diagrams/system.html
+```
+
+Or point to an existing HTML file:
+
+```text
+/rearchify diagrams/system.html
+```
+
+For HTML input, the agent locates the original JSON or your latest saved JSON. Legacy HTML may not contain that source; if it is missing, the agent asks for it instead of reconstructing the diagram. With no output argument, HTML input is refreshed at its existing path; JSON input produces a sibling `.html` file. Existing output is backed up before replacement.
+
+The refresh preserves source content, authored layout, and the existing quality profile. Delivery runs once; validation errors are reported without starting an automatic repair or redesign loop. On success, reopen or reload the output and choose **Edit layout**. Save JSON after editing so future refreshes use your latest changes; browser-edited HTML remains a draft until its saved JSON passes delivery.
+
+In clients without this custom slash command, invoke the Archify skill and write `Use /rearchify to refresh diagrams/system.architecture.json`. This is an agent workflow, **not a CLI subcommand**. To run delivery directly from a checkout of this fork:
+
+```bash
+node archify/bin/archify.mjs deliver architecture diagrams/system.architecture.json diagrams/system.html --json
+```
+
+Direct CLI use does not perform the agent workflow's backup step; keep a copy or choose a new output path when needed. See the [refresh workflow](archify/references/rearchify.md) for details.
 
 ## See Archify in action
 

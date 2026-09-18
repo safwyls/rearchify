@@ -26,7 +26,7 @@ Archify 是一套基于 Node.js 的渲染与校验系统，并以 Agent Skill �
 ```bash
 npx skills add safwyls/rearchify -g
 ```
-使用 Cursor？打开[可切换 Agent 的快速开始页](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture)，即可获得准确的全局或当前仓库安装命令。
+已安装上游 Archify？请参阅下方[替换安装说明](#将现有-archify-替换为-rearchify)。上游快速开始页面安装的是上游 Archify。
 
 **不需要绑定代码库：**在任意 Agent 对话里描述系统即可。
 
@@ -40,6 +40,55 @@ npx skills add safwyls/rearchify -g
 - **集成可靠性：**Delta 报告包含端点偏移变化；回归测试覆盖浏览器交互、JSON 往返、诊断与 Windows 测试兼容性。
 
 打开新生成的架构 HTML，选择 **Edit layout（编辑布局）**。编辑后的文件属于草稿：交付前请对保存的 JSON 重新运行 `validate` 和 `deliver`。详见[编辑控件](archify/references/viewer-runtime.md)。
+
+## 将现有 Archify 替换为 Rearchify
+
+此分支名为 **Rearchify**，但安装后的技能仍叫 **`archify`**，CLI 仍为 `bin/archify.mjs`。请在原来的 Agent 和安装范围内替换上游包，不要将文件夹改名为 `rearchify`，也不要同时保留可被 Agent 加载的上游和分支副本。
+
+使用 `skills` 管理的全局安装：
+
+```bash
+npx skills remove archify --global
+npx skills add safwyls/rearchify --skill archify --global
+```
+
+选择之前使用的 Agent。如果是项目级安装，请在该项目中运行相同命令并**去掉 `--global`**。如果两个范围都装有 Archify，请分别替换或移除相关上游副本，避免加载旧版本。Agent 选择选项见 [skills CLI 文档](https://github.com/vercel-labs/skills#readme)。
+
+手动 ZIP 安装：先备份技能目录中的自定义文件和图表，将旧 `archify` 文件夹移出 Agent 的技能搜索目录，再将此分支的 [archify.zip](archify.zip) 解压到原来的技能目录。必须替换整个包，包括渲染器和资源；只替换 `SKILL.md` 不会添加编辑器。
+
+重新加载 Agent 或开启新会话，确认实际加载的 `archify/SKILL.md` 包含 **Refresh existing HTML**，且存在 `references/rearchify.md`。在启动 Agent 的环境中设置 `ARCHIFY_UPDATE_CHECK_DISABLED=1`，关闭上游更新提醒。后续请从 `safwyls/rearchify` 更新；本文其他位置的上游快速开始及 DSH 链接不会安装此分支。
+
+现有 JSON 仍是图表源文件。**安装分支不会更新已经生成的 HTML**；请使用下面的 `/rearchify` 刷新所需图表。
+
+## 使用 `/rearchify` 刷新旧图表
+
+`/rearchify` 让 Agent 使用此分支的渲染器重新执行 `deliver`。架构 HTML 将获得 **Edit layout（编辑布局）**，可在本地移动节点、调整路径，无需调用模型。其他图表类型可以重新生成，但不会获得架构编辑器。
+
+在 **VS Code 的 Copilot Chat** 中，将已安装技能的 `prompts/rearchify.prompt.md`（或此处的[命令模板](archify/prompts/rearchify.prompt.md)）复制到图表工作区的 `.github/prompts/rearchify.prompt.md`。此分支仓库已包含命令入口。仅安装技能不会注册这个额外的斜杠命令。详见 [VS Code 提示文件文档](https://code.visualstudio.com/docs/agent-customization/prompt-files)。
+
+在对话中运行：
+
+```text
+/rearchify diagrams/system.architecture.json diagrams/system.html
+```
+
+也可以指定现有 HTML：
+
+```text
+/rearchify diagrams/system.html
+```
+
+对于 HTML 输入，Agent 会寻找原始 JSON 或最新保存的 JSON。旧 HTML 可能不包含源数据；缺失时会要求提供 JSON，而不是逆向重建图表。省略输出参数时，HTML 输入会在原路径刷新，JSON 输入会生成同目录的 `.html` 文件。覆盖现有输出前会保留备份。
+
+刷新保留源内容、手动布局及原质量配置。交付只运行一次；校验失败会报告诊断，不会自动开始修复或重排循环。成功后重新打开或刷新 HTML，选择 **Edit layout**。编辑后请保存 JSON，以便下次刷新使用最新修改；浏览器编辑后的 HTML 仍是草稿，需对保存的 JSON 重新执行交付。
+
+在不支持此自定义斜杠命令的客户端中，调用 Archify skill 并写明 `使用 /rearchify 刷新 diagrams/system.architecture.json`。这是 Agent 工作流，**不是 CLI 子命令**。也可在此分支的仓库根目录直接运行：
+
+```bash
+node archify/bin/archify.mjs deliver architecture diagrams/system.architecture.json diagrams/system.html --json
+```
+
+直接运行 CLI 不会执行 Agent 工作流的备份步骤；需要时请先保留副本或选择新输出路径。详见[刷新工作流](archify/references/rearchify.md)。
 
 ## 看看 Archify 能做什么
 

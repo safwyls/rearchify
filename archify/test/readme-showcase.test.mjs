@@ -217,7 +217,9 @@ test('README stays scannable without deleting the visual proof set', () => {
 
   for (const filename of ['README.md', 'README_EN.md', 'README_ZH.md']) {
     const readme = fs.readFileSync(path.join(repoRoot, filename), 'utf8');
-    assert.ok(readme.split('\n').length <= 295, `${filename}: README grew beyond the scannable line budget`);
+    // Allow the fork replacement guide and /rearchify setup/examples alongside
+    // the existing product proof, while retaining a bounded README size.
+    assert.ok(readme.split('\n').length <= 350, `${filename}: README grew beyond the scannable line budget`);
     assert.match(readme, filename === 'README_ZH.md' ? /不需要绑定代码库/ : /No repository is required/);
     for (const asset of commonAssets) {
       assert.ok(readme.includes(`docs/assets/${asset}`), `${filename}: visual proof ${asset} was removed`);
@@ -228,7 +230,7 @@ test('README stays scannable without deleting the visual proof set', () => {
   const wordCount = english.trim().split(/\s+/).length;
   const intro = english.slice(0, english.indexOf('![License]'));
   const introBullets = intro.match(/^- \*\*/gm) || [];
-  assert.ok(wordCount <= 2125, `README.md is too verbose again (${wordCount} words)`);
+  assert.ok(wordCount <= 2800, `README.md is too verbose again (${wordCount} words)`);
   assert.ok(introBullets.length <= 8, `README.md has too many top-level capability bullets (${introBullets.length})`);
 
   const chinese = fs.readFileSync(path.join(repoRoot, 'README_ZH.md'), 'utf8');
