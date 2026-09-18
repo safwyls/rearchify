@@ -18,8 +18,8 @@ For `/rearchify <source.json or existing.html> [output.html]`, follow
 [the refresh workflow](references/rearchify.md) instead of the fresh-authoring
 and visual-polish loops below. Redeliver the existing source with this fork to
 add **Edit layout** to architecture HTML; stop on validation failure without
-redesigning the diagram. Copilot users can install `prompts/rearchify.prompt.md`
-in their workspace's `.github/prompts/` for a native `/rearchify` command.
+redesigning the diagram. Install the companion `rearchify` skill alongside
+`archify` for a native Copilot `/rearchify` command; no prompt-file copy is needed.
 
 ## Fast authoring path
 

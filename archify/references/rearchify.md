@@ -34,8 +34,10 @@ the diagram. Other diagram types can be redelivered but do not gain the editor.
    optional for this refresh, not a trigger for redesign. Subsequent browser
    edits remain drafts until the saved JSON passes delivery again.
 
-This is an agent instruction, not a new CLI subcommand. For a native Copilot
-slash command, install the bundled `prompts/rearchify.prompt.md`
-in the target workspace's `.github/prompts/` directory; installing this skill
-alone does not register a second skill name. In other clients, invoke Archify
-and include `/rearchify` with the source path in the request.
+This is an agent instruction, not a new CLI subcommand. Install both `archify`
+and the companion `rearchify` skill from `safwyls/rearchify` for the same agent
+and scope. Copilot exposes the companion as `/rearchify` automatically.
+The bundled `prompts/rearchify.prompt.md` remains an optional fallback for
+clients supporting prompt files but not skill slash commands. Use one entry
+point to avoid duplicate command names. In other clients, invoke Archify and
+include `/rearchify` with the source path in the request.

@@ -24,7 +24,7 @@ Archify 是一套基于 Node.js 的渲染与校验系统，并以 Agent Skill �
 **[上游在线项目页](https://tt-a1i.github.io/archify/)** · **[场景选图指南](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
 
 ```bash
-npx skills add safwyls/rearchify -g
+npx skills add safwyls/rearchify --skill archify rearchify -g
 ```
 已安装上游 Archify？请参阅下方[替换安装说明](#将现有-archify-替换为-rearchify)。上游快速开始页面安装的是上游 Archify。
 
@@ -49,7 +49,7 @@ npx skills add safwyls/rearchify -g
 
 ```bash
 npx skills remove archify --global
-npx skills add safwyls/rearchify --skill archify --global
+npx skills add safwyls/rearchify --skill archify rearchify --global
 ```
 
 选择之前使用的 Agent。如果是项目级安装，请在该项目中运行相同命令并**去掉 `--global`**。如果两个范围都装有 Archify，请分别替换或移除相关上游副本，避免加载旧版本。Agent 选择选项见 [skills CLI 文档](https://github.com/vercel-labs/skills#readme)。
@@ -64,7 +64,13 @@ npx skills add safwyls/rearchify --skill archify --global
 
 `/rearchify` 让 Agent 使用此分支的渲染器重新执行 `deliver`。架构 HTML 将获得 **Edit layout（编辑布局）**，可在本地移动节点、调整路径，无需调用模型。其他图表类型可以重新生成，但不会获得架构编辑器。
 
-在 **VS Code 的 Copilot Chat** 中，将已安装技能的 `prompts/rearchify.prompt.md`（或此处的[命令模板](archify/prompts/rearchify.prompt.md)）复制到图表工作区的 `.github/prompts/rearchify.prompt.md`。此分支仓库已包含命令入口。仅安装技能不会注册这个额外的斜杠命令。详见 [VS Code 提示文件文档](https://code.visualstudio.com/docs/agent-customization/prompt-files)。
+上面的安装命令同时安装 `archify`（渲染器）和 `rearchify`（刷新入口）。重新加载后，**VS Code 的 Copilot Chat 会自动提供 `/rearchify`**，无需复制提示文件。现有分支安装可运行：
+
+```bash
+npx skills add safwyls/rearchify --skill archify rearchify --agent github-copilot --global --copy --yes
+```
+
+项目级安装请去掉 `--global`。手动 ZIP 仅包含 `archify`；可运行上面的命令自动安装配套技能，或将 [rearchify 文件夹](rearchify) 放在已安装的 `archify` 文件夹旁。如果之前复制过 `.github/prompts/rearchify.prompt.md`，安装配套技能后请移除旧提示文件，避免同名命令。详见 [VS Code 技能文档](https://code.visualstudio.com/docs/agent-customization/agent-skills#use-skills-as-slash-commands)。
 
 在对话中运行：
 
@@ -142,13 +148,13 @@ Export 菜单支持复制 PNG，并下载静态或动态格式：
 ### 1. 安装
 
 ```bash
-npx skills add safwyls/rearchify -g
+npx skills add safwyls/rearchify --skill archify rearchify -g
 ```
 
 显式、非交互地安装到 Cursor：
 
 ```bash
-npx -y skills add safwyls/rearchify --skill archify --agent cursor --global --copy --yes
+npx -y skills add safwyls/rearchify --skill archify rearchify --agent cursor --global --copy --yes
 ```
 
 如果只想临时体验：

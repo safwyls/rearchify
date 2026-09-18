@@ -24,7 +24,7 @@ Archify is a Node.js rendering and validation system for Cursor, Claude Code, Co
 **[Upstream project page](https://tt-a1i.github.io/archify/)** · **[Scenario guide](https://tt-a1i.github.io/archify/guide.html)** · **[Proof Lab](https://tt-a1i.github.io/archify/gallery.html)**
 
 ```bash
-npx skills add safwyls/rearchify -g
+npx skills add safwyls/rearchify --skill archify rearchify -g
 ```
 
 Already using upstream Archify? Follow [Replace an existing Archify installation](#replace-an-existing-archify-installation) below. The upstream quick-start page installs upstream Archify.
@@ -50,7 +50,7 @@ For a global installation managed by `skills`:
 
 ```bash
 npx skills remove archify --global
-npx skills add safwyls/rearchify --skill archify --global
+npx skills add safwyls/rearchify --skill archify rearchify --global
 ```
 
 Select the agents you previously used. For a project installation, run the same commands from that project **without `--global`**. If both scopes contain Archify, replace or remove the upstream copy in each relevant scope so the agent cannot select an old version. See the [skills CLI documentation](https://github.com/vercel-labs/skills#readme) for agent selection options.
@@ -65,7 +65,13 @@ Existing JSON files remain the source of your diagrams. **Installing the fork do
 
 `/rearchify` asks the agent to rerun `deliver` with this fork's renderer. Architecture HTML gains **Edit layout**, letting you move nodes and adjust paths locally without model calls. Other diagram types can be regenerated, but do not gain the architecture editor.
 
-In **Copilot Chat in VS Code**, copy the installed skill's `prompts/rearchify.prompt.md` (or this [command template](archify/prompts/rearchify.prompt.md)) into your diagram workspace as `.github/prompts/rearchify.prompt.md`. The fork repository already includes a command wrapper. Skill installation alone does not register this additional slash command. See [VS Code prompt files](https://code.visualstudio.com/docs/agent-customization/prompt-files).
+The install commands above include both `archify` (the renderer) and `rearchify` (the refresh entry point). **Copilot Chat in VS Code exposes the companion as `/rearchify` automatically** after reloading; no prompt-file copy is needed. To add it to an existing fork installation for Copilot:
+
+```bash
+npx skills add safwyls/rearchify --skill archify rearchify --agent github-copilot --global --copy --yes
+```
+
+Omit `--global` for project installs. Manual ZIP installs contain only `archify`; use the command above for automatic companion installation, or put the [rearchify folder](rearchify) beside the installed `archify` folder. If you previously copied `.github/prompts/rearchify.prompt.md`, remove that old prompt after installing the companion to avoid duplicate names. [VS Code skills documentation](https://code.visualstudio.com/docs/agent-customization/agent-skills#use-skills-as-slash-commands).
 
 Then run in chat:
 
@@ -143,13 +149,13 @@ Open [`examples/web-app.html`](examples/web-app.html) locally to try the complet
 ### 1. Install
 
 ```bash
-npx skills add safwyls/rearchify -g
+npx skills add safwyls/rearchify --skill archify rearchify -g
 ```
 
 For an explicit, non-interactive Cursor install:
 
 ```bash
-npx -y skills add safwyls/rearchify --skill archify --agent cursor --global --copy --yes
+npx -y skills add safwyls/rearchify --skill archify rearchify --agent cursor --global --copy --yes
 ```
 
 To try without installing:
