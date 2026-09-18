@@ -16,8 +16,12 @@ include this bundle.
 
 The modal owns its own SVG and camera. Each edit recomputes the scene, including
 routes and frames; pointer release commits one undo transaction and runs layout
-checks. Apply rebuilds the reader from its startup document with the new canonical
-SVG and source, avoiding stale node/edge caches in reader modules. HTML downloads
+checks. Apply transfers the spec/history through tab-local session storage and
+performs a real reload. The editor bootstrap restores the canonical SVG before
+reader modules initialize. Never use document.open/write for Apply: replacing
+the document during an input handler disrupts pointer-exit events across all
+viewer components. The local save revision survives the transfer so external
+file changes still trigger conflicts. HTML downloads
 use the same clean startup snapshot and retain edit history, never modal elements
 or current reader overlays. Edited documents explicitly remain drafts pending CLI
 delivery checks. Tests cover browser interaction and JSON/HTML/CLI round trips.

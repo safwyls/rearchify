@@ -4,3 +4,5 @@ node_modules/
 .claude/
 .lore/
 /.impeccable/
+*.editor-session.json
+*.editor-settings.json

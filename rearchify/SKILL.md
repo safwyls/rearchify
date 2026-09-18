@@ -23,6 +23,8 @@ source and authored layout, back up existing HTML before replacement, and stop
 on validation failure without automatic repair or redesign loops. If an HTML
 input has no available source JSON, ask for it rather than reconstructing SVG.
 
-Architecture HTML gains **Edit layout**; other diagram types do not. Report the
+Architecture HTML gains **Edit layout**; other diagram types do not. After a
+successful local architecture refresh, follow Archify's background editing-service
+handoff and return its live URL plus the stop command. Report the
 delivery result and output path. Browser/perceptual checks are not implied by
 delivery. This is an agent entry point, not an additional CLI subcommand.

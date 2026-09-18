@@ -122,8 +122,17 @@ test('architecture editor supports drag, history, labels, draft checks, download
       const loaded = browser.cdp.waitFor('Page.loadEventFired', session);
       await send('Page.navigate', { url: pathToFileURL(file).href });
       await loaded;
+      await evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))`);
     }
-    const click = action => evaluate(`document.querySelector('#architecture-editor [data-action="${action}"]').click()`);
+    const click = async action => {
+      const before = action === 'apply' ? await evaluate('performance.timeOrigin') : null;
+      const loaded = action === 'apply' ? browser.cdp.waitFor('Page.loadEventFired', session) : null;
+      await evaluate(`document.querySelector('#architecture-editor [data-action="${action}"]').click()`);
+      if (loaded) {
+        await loaded;
+        assert.notEqual(await evaluate('performance.timeOrigin'), before, 'Apply must create a fresh document lifecycle');
+      }
+    };
     async function contextMenu(selector) {
       const rect = await evaluate(`(() => {const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'right', clickCount: 1 });
@@ -204,9 +213,11 @@ test('architecture editor supports drag, history, labels, draft checks, download
     await evaluate(`document.getElementById('editor-label').value='Database'`);
     await click('label');
     await click('apply');
-    // document.write reinitializes the reader and the editor asynchronously.
+    // Apply reloads and restores the draft before reader initialization.
     await evaluate(`new Promise(resolve => {let n=0;const id=setInterval(()=>{if(document.getElementById('btn-edit-layout') || ++n>100){clearInterval(id);resolve()}},20)})`);
     assert.equal(await evaluate(`document.querySelector('.diagram-container [data-node-id="db"]').dataset.nodeLabel`), 'Database');
+    const appliedWidths = await evaluate(`new Promise(resolve => {const widths=[];function sample(){widths.push(document.querySelector('.diagram-container').getBoundingClientRect().width);if(widths.length<90)requestAnimationFrame(sample);else resolve(widths.slice(-30));}requestAnimationFrame(sample);})`);
+    assert.ok(Math.max(...appliedWidths)-Math.min(...appliedWidths)<1, 'applied viewer must settle instead of oscillating between widths');
     await open();
     assert.equal(await evaluate(`document.querySelector('.editor-status').dataset.valid`), 'true');
     if (process.env.ARCHIFY_EDITOR_SCREENSHOT) {
@@ -234,6 +245,47 @@ test('architecture editor supports drag, history, labels, draft checks, download
     await load(demoOutput);
     await open();
     await evaluate(`document.querySelector('[data-control="snap"]').checked=false`);
+    await click('cancel');
+    async function checkHover() {
+    const hoverTarget = await evaluate(`(() => {const r=document.querySelector('.diagram-container [data-node-id="api"] > rect').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+    await send('Input.dispatchMouseEvent', {type:'mouseMoved', ...hoverTarget});
+    const hoverFrames = await evaluate(`new Promise(resolve=>{const values=[];function sample(){const svg=document.querySelector('.diagram-container > svg');values.push({active:svg.getAttribute('data-intent-trace-active'),overlays:svg.querySelectorAll('[data-intent-trace-overlay]').length});if(values.length<90)requestAnimationFrame(sample);else resolve(values.slice(-30));}requestAnimationFrame(sample);})`);
+    assert.ok(hoverFrames.every(frame=>frame.active==='api' && frame.overlays===1), JSON.stringify(hoverFrames));
+    await send('Input.dispatchMouseEvent', {type:'mouseMoved', x:1,y:1});
+    assert.equal(await evaluate(`document.querySelector('.diagram-container > svg').getAttribute('data-intent-trace-active')`), null, 'leaving a node restores the full diagram');
+    assert.equal(await evaluate(`document.querySelectorAll('.diagram-container [data-intent-trace-overlay]').length`), 0);
+    const edgeTarget = await evaluate(`(() => {const svg=document.querySelector('.diagram-container > svg'),path=svg.querySelector('path[data-edge-id="jwt-verification"]'),p=path.getAttribute('data-composition-points').split(';').map(s=>s.split(',').map(Number));const q=new DOMPoint((p[0][0]+p[1][0])/2,(p[0][1]+p[1][1])/2).matrixTransform(svg.getScreenCTM());return {x:q.x,y:q.y}})()`);
+    await send('Input.dispatchMouseEvent', {type:'mouseMoved', ...edgeTarget});
+    const edgeFrames = await evaluate(`new Promise(resolve=>{let n=0;const values=[];function sample(){values.push(document.querySelector('.diagram-container > svg').getAttribute('data-relationship-preview-active'));if(++n<45)requestAnimationFrame(sample);else resolve(values.slice(-15));}requestAnimationFrame(sample);})`);
+    assert.ok(edgeFrames.every(key=>key==='1'), 'connection hover must remain stable: '+JSON.stringify(edgeFrames));
+    await send('Input.dispatchMouseEvent', {type:'mouseMoved', x:1,y:1});
+    assert.equal(await evaluate(`document.querySelector('.diagram-container > svg').getAttribute('data-relationship-preview-active')`), null, 'leaving a connection restores the full diagram after Apply');
+    for (const [selector, attribute] of [['[data-guided-view-id]', 'data-chapter-preview'], ['[data-legend-kind][role="button"]', 'data-legend-preview-active']]) {
+      const target = await evaluate(`(() => {const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+      await send('Input.dispatchMouseEvent', {type:'mouseMoved', ...target});
+      await evaluate(`new Promise(resolve=>{let n=0;function step(){if(++n<15)requestAnimationFrame(step);else resolve();}requestAnimationFrame(step);})`);
+      assert.ok(await evaluate(`document.querySelector('.diagram-container > svg').hasAttribute(${JSON.stringify(attribute)})`), selector+' hover starts');
+      await send('Input.dispatchMouseEvent', {type:'mouseMoved',x:1,y:1});
+      assert.equal(await evaluate(`document.querySelector('.diagram-container > svg').getAttribute(${JSON.stringify(attribute)})`), null, selector+' hover clears');
+    }
+    }
+    await checkHover();
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await evaluate(`document.querySelector('.diagram-container [data-node-id="api"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+      assert.equal(await evaluate(`document.querySelector('.diagram-container > svg').getAttribute('data-focus-active')`), 'api');
+      await open(); await click('apply');
+      await evaluate(`new Promise(resolve => {const id=setInterval(()=>{if(document.getElementById('btn-edit-layout')){clearInterval(id);resolve()}},20)})`);
+      await evaluate(`document.getElementById('btn-focus-clear').click()`);
+      // Clearing pinned focus deliberately returns keyboard focus to its node.
+      // Move keyboard focus to the toolbar before testing mouse-only previews.
+      await evaluate(`document.getElementById('btn-edit-layout').focus()`);
+      assert.equal(await evaluate(`document.querySelectorAll('#overview-map-surface > svg').length`), 1, 'Apply must rebuild one fresh radar, not retain stale hit targets');
+      const kinds = await evaluate(`[...document.querySelectorAll('.semantic-lens-kind')].map(n=>n.dataset.kind)`);
+      assert.equal(kinds.length, new Set(kinds).size, 'Apply must not duplicate semantic highlight controls');
+      await checkHover();
+    }
+    await open();
+    await evaluate(`document.querySelector('[data-control="snap"]').checked=false`);
     async function dragElement(selector, dx, dy, modifiers = 0) {
       const center = await evaluate(`(() => {const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();const m=document.querySelector('.editor-stage > svg').getScreenCTM();return {x:r.x+r.width/2,y:r.y+r.height/2,dx:m.a*${dx}+m.c*${dy},dy:m.b*${dx}+m.d*${dy}}})()`);
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: center.x, y: center.y, button: 'left', clickCount: 1, modifiers });
@@ -247,6 +299,16 @@ test('architecture editor supports drag, history, labels, draft checks, download
     const nodeMovedJwt = await jwtPoints();
     assert.equal(nodeMovedJwt[1][1], initialJwt[1][1] + 20);
     assertOrthogonal(nodeMovedJwt);
+    await click('apply');
+    await evaluate(`new Promise(resolve => {let n=0;const id=setInterval(()=>{if(document.getElementById('btn-edit-layout') || ++n>100){clearInterval(id);resolve()}},20)})`);
+    for (const [width,height] of [[1440,900],[1600,1000],[1920,1080]]) {
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+      const widths = await evaluate(`new Promise(resolve=>{const values=[];function sample(){values.push(document.querySelector('.diagram-container').getBoundingClientRect().width);if(values.length<90)requestAnimationFrame(sample);else resolve(values.slice(-30));}requestAnimationFrame(sample);})`);
+      assert.ok(Math.max(...widths)-Math.min(...widths)<1, 'demo Apply must settle at '+width+'x'+height+': '+JSON.stringify([...new Set(widths)]));
+    }
+    await checkHover();
+    await open();
+    await evaluate(`document.querySelector('[data-control="snap"]').checked=false`);
     await contextMenu('[data-editor-kind="segment"][data-editor-edge="1"][data-editor-index="1"]');
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
     assert.equal(await evaluate(`document.getElementById('architecture-editor').open`), true);
@@ -272,7 +334,8 @@ test('architecture editor supports drag, history, labels, draft checks, download
     assert.deepEqual(await jwtPoints(), segmentMovedJwt);
     const labelPosition = () => evaluate(`(() => {const text=document.querySelector('.editor-stage g[data-edge-key="1"] text');return [Number(text.getAttribute('x')),Number(text.getAttribute('y'))]})()`);
     const labelBefore = await labelPosition();
-    await dragElement('.editor-stage g[data-edge-key="1"]', -90, 0);
+    // This assertion covers free placement; snapping has separate coverage.
+    await dragElement('.editor-stage g[data-edge-key="1"]', -90, 0, 1);
     assert.deepEqual(await labelPosition(), [labelBefore[0] - 90, labelBefore[1]]);
     assert.deepEqual(await jwtPoints(), segmentMovedJwt, 'label dragging must not alter route geometry');
     await dragElement('[data-editor-kind="bend"][data-editor-edge="1"][data-editor-index="2"]', -10, -10);
@@ -417,6 +480,7 @@ test('architecture editor supports drag, history, labels, draft checks, download
     await click('html');
     fs.writeFileSync(path.join(scratch,'boundaries.html'), await evaluate('editorDownloads.at(-1).text()'));
     await load(path.join(scratch,'boundaries.html')); await open();
+    assert.equal(await evaluate(`document.getElementById('btn-save-deliver').hidden`), true, 'Standalone edited drafts never offer service-backed saving');
     await captureDownloads(); await click('json');
     assert.deepEqual(JSON.parse(await evaluate('editorDownloads.at(-1).text()')).boundaries, drawnSpec.boundaries);
     await contextMenu(`.editor-stage g[data-graph-role="structural-frame-label"][data-composition-frame-id="${newIndex}"]`);

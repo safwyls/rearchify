@@ -96,6 +96,26 @@ node archify/bin/archify.mjs deliver architecture diagrams/system.architecture.j
 
 直接运行 CLI 不会执行 Agent 工作流的备份步骤；需要时请先保留副本或选择新输出路径。详见[刷新工作流](archify/references/rearchify.md)。
 
+## 交付 → 编辑 → 保存 → 再交付
+
+打开技能返回的在线编辑地址。**Edit layout** 打开编辑器；**Apply & close** 通过标签页草稿重新加载阅读视图，需要浏览器会话存储，不保存文件。只有存在应用后的草稿且本地服务心跳正常时，主工具栏才显示 **Save & deliver**。
+
+保存会把编辑后的 JSON 发给本地 Node 服务，无需调用 LLM。服务对暂存文件运行常规交付校验；成功后替换源 JSON 和 HTML，写入含哈希的 `<输出文件名>.delivery.json`，并重新加载已交付图表。可重复此循环。确定性交付校验不包含浏览器或视觉审查。
+
+在此分支仓库根目录运行 `deliver` 后：
+
+```bash
+node archify/bin/archify.mjs edit start architecture diagrams/system.architecture.json diagrams/system.html
+node archify/bin/archify.mjs edit status diagrams/system.html
+node archify/bin/archify.mjs edit stop diagrams/system.html
+```
+
+打开 `edit start` 返回的地址，传入与交付相同的显式 `--quality` 和 `--repo-root`。CLI 在 PATH 上时，`archify edit` 发现项目图表并提供选择菜单；`archify edit diagrams/system.html` 指定输出。直接运行 `deliver` 不启动服务；相同配置会复用后台服务。关闭标签页不会停止进程；请在保存结束后运行 `edit stop`。
+
+服务监听 `127.0.0.1`，只处理一个源文件/HTML 组合，检查会话令牌和请求来源。`<output.html>.editor-session.json` 是私有进程状态，不应分享。校验失败保留原文件；写入失败尝试回滚，回滚失败时报告恢复备份。页面加载后磁盘内容变化会导致保存冲突；重新加载前请下载草稿。页面加载时会拒绝源 JSON 与 HTML 不一致的情况；外部修改 JSON 后请先重新运行 `deliver`。校验设置保存在私有的 `<output.html>.editor-settings.json` 中，停止服务后仍会保留。
+
+直接打开独立 HTML 支持离线编辑，但不能覆盖源文件。**Save JSON** 下载源文件，**Download HTML** 下载不含在线会话的可编辑草稿。将下载的 JSON 保存到预期路径后，再运行 `deliver`。详见[编辑控件](archify/references/viewer-runtime.md)。
+
 ## 看看 Archify 能做什么
 
 下面都是真实生成的 Archify 成品，不是产品效果图。点击画面即可打开对应的可分享交互状态。

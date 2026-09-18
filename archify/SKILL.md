@@ -124,6 +124,10 @@ node bin/archify.mjs preview <type> <input>.json <output>.html --quality showcas
 
 Never start preview by default. Read `references/delivery-contract.md` when using preview, repository evidence, export receipts, visual review, or post-commit opening.
 
+For local architecture handoffs (including `/rearchify`), start the background
+editing service after delivery. Follow [local editing handoff](references/editor-handoff.md)
+for start/status/stop commands, validation options, and static-only fallbacks.
+
 ## Optional viewer capabilities
 
 Architecture HTML includes **Edit layout**: drag nodes with optional grid snapping,
@@ -153,4 +157,4 @@ When shell access is unavailable, hand-place architecture SVG into `assets/templ
 
 ## Output
 
-Return the checked HTML path, diagram type, validation summary, specification/artifact receipt, browser-evidence status, and truthful visual-review status. Do not claim success for a non-zero command or claim visual inspection you did not perform.
+Return the checked HTML path, diagram type, validation summary, specification/artifact receipt, browser-evidence status, and truthful visual-review status. For local architecture handoffs, also return the live editor URL and stop command. Do not claim success for a non-zero command or claim visual inspection you did not perform.

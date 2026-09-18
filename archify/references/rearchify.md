@@ -28,8 +28,13 @@ the diagram. Other diagram types can be redelivered but do not gain the editor.
    Do not force `showcase` for a refresh. On failure, report the diagnostics and
    stop; do not change the diagram, lower validation requirements, or start a
    layout-repair loop unless the user requests repairs.
-4. On success, report the output and receipt, and tell architecture users to
-   reopen/reload the HTML and choose **Edit layout**. Report browser/perceptual
+4. On success for a local architecture diagram, run
+   `node bin/archify.mjs edit start architecture "<source.json>" "<output.html>"`
+   with the same delivery options. Return its live editor URL, the standalone
+   output and receipt, and `node bin/archify.mjs edit stop "<output.html>"`.
+   Follow the local-service fallback rules in `references/editor-handoff.md` for static-only or
+   unsupported environments. Users choose **Edit layout**, **Apply & close**,
+   then **Save & deliver** to persist changes. Report browser/perceptual
    checks as not run unless actually performed. Additional visual review is
    optional for this refresh, not a trigger for redesign. Subsequent browser
    edits remain drafts until the saved JSON passes delivery again.

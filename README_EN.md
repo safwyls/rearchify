@@ -87,7 +87,7 @@ Or point to an existing HTML file:
 
 For HTML input, the agent locates the original JSON or your latest saved JSON. Legacy HTML may not contain that source; if it is missing, the agent asks for it instead of reconstructing the diagram. With no output argument, HTML input is refreshed at its existing path; JSON input produces a sibling `.html` file. Existing output is backed up before replacement.
 
-The refresh preserves source content, authored layout, and the existing quality profile. Delivery runs once; validation errors are reported without starting an automatic repair or redesign loop. On success, reopen or reload the output and choose **Edit layout**. Save JSON after editing so future refreshes use your latest changes; browser-edited HTML remains a draft until its saved JSON passes delivery.
+Refresh preserves the source, layout, and quality profile; validation failures stop without automatic repairs. Local architecture handoffs start a background editor and return its URL. Use **Edit layout**, **Apply & close**, then **Save & deliver** to persist changes. See [start, status, and stop commands](archify/references/viewer-runtime.md) for managing the service later. Standalone HTML supports offline editing and downloads.
 
 In clients without this custom slash command, invoke the Archify skill and write `Use /rearchify to refresh diagrams/system.architecture.json`. This is an agent workflow, **not a CLI subcommand**. To run delivery directly from a checkout of this fork:
 
@@ -96,6 +96,47 @@ node archify/bin/archify.mjs deliver architecture diagrams/system.architecture.j
 ```
 
 Direct CLI use does not perform the agent workflow's backup step; keep a copy or choose a new output path when needed. See the [refresh workflow](archify/references/rearchify.md) for details.
+
+## Deliver → edit → save → deliver
+
+Open the live editor URL returned by the skill. **Edit layout** opens the editor;
+**Apply & close** reloads the reader with a tab-local draft but does not save files.
+It requires browser session storage. **Save & deliver** appears in the main toolbar
+only for an applied draft while the local service responds to its heartbeat.
+
+Saving sends the edited JSON to the local Node service without an LLM call. The
+service runs normal delivery checks on staged files. Success replaces the source
+JSON and HTML, writes `<output-stem>.delivery.json` with hashes, and reloads the
+delivered diagram. Repeat the loop as needed. Delivery checks are deterministic;
+they do not include browser or perceptual review.
+
+From this fork's checkout, after running `deliver`:
+
+```bash
+node archify/bin/archify.mjs edit start architecture diagrams/system.architecture.json diagrams/system.html
+node archify/bin/archify.mjs edit status diagrams/system.html
+node archify/bin/archify.mjs edit stop diagrams/system.html
+```
+
+Open the URL from `edit start`; pass the same explicit `--quality` and `--repo-root`
+options as delivery. With the CLI on PATH, `archify edit` discovers project diagrams
+and offers a chooser; `archify edit diagrams/system.html` selects an output.
+Direct `deliver` never starts a service. Matching starts reuse the background
+service. Closing the tab does not stop it; run `edit stop` after any save finishes.
+
+The service binds to `127.0.0.1`, handles one source/HTML pair, and checks the session
+token and request origin. `<output.html>.editor-session.json` is private process
+state, not a shareable artifact. Validation failure preserves existing files;
+write failures attempt rollback and report recovery backups if rollback fails.
+Changes on disk after page load cause a save conflict; download the draft before
+reloading. Source/HTML mismatches are rejected on page load; after external JSON edits, rerun
+`deliver` before reopening the service URL. Validation settings survive service stops
+in `<output.html>.editor-settings.json`; keep this local sidecar private too.
+
+Opening standalone HTML directly supports offline editing but cannot overwrite
+source files. **Save JSON** downloads source; **Download HTML** creates an editable
+draft without the live session. Save downloaded JSON to the intended source path,
+then rerun `deliver`. See [editor controls](archify/references/viewer-runtime.md).
 
 ## See Archify in action
 

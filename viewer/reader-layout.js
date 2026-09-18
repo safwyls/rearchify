@@ -100,7 +100,8 @@
         var minWidth = Math.min(MIN_READER_WIDTH, viewportCap);
         var maxWidth = Math.min(MAX_READER_WIDTH, viewportCap);
         var fixedHeight = chrome.bodyY + chrome.diagramY + SAFE_BOTTOM_GAP +
-          outerHeight(header) + outerHeight(guided) + outerHeight(cards);
+          outerHeight(header) + outerHeight(guided) + outerHeight(cards) +
+          outerHeight(shell.querySelector('.architecture-edit-note'));
         var availableSvgHeight = Math.max(1, window.innerHeight - fixedHeight);
         var desiredWidth = availableSvgHeight * ratio + chrome.diagramX;
         var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth));

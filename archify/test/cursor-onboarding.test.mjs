@@ -21,7 +21,7 @@ test('Cursor onboarding stays explicit, bilingual, and backed by the same Skill'
   assert.equal(english, englishMirror, 'English README mirrors must stay synchronized');
   assert.match(english, /Cursor, Claude Code, Codex CLI, and OpenCode/);
   assert.match(chinese, /Cursor、Claude Code、Codex CLI 和 OpenCode/);
-  for (const surface of [english, chinese]) assert.ok(surface.includes(cursorCommand.replace('tt-a1i/archify', 'safwyls/rearchify')));
+  for (const surface of [english, chinese]) assert.ok(surface.includes(cursorCommand.replace('tt-a1i/archify', 'safwyls/rearchify').replace('--skill archify', '--skill archify rearchify')));
   assert.ok(landing.includes(cursorCommand), 'upstream landing page retains its upstream install command');
   for (const surface of [english, chinese, start, landing]) {
     assert.doesNotMatch(surface, /skills use[^\n<]*--agent cursor/);

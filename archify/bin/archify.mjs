@@ -17,6 +17,11 @@ function usage() {
   archify render <type> <input.json> [output.html] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify compare architecture <base.json> <head.json> [output.html] [--receipt path] [--json] [--quality standard|showcase] [--repo-root path]
   archify deliver <type> <input.json> [output.html] [--json] [--open] [--quality standard|showcase] [--repo-root path (architecture only)]
+  archify edit [source.json or output.html] [--no-open]
+  archify edit architecture <input.json> <output.html> [--quality standard|showcase] [--repo-root path]
+  archify edit start architecture <input.json> <output.html> [--quality standard|showcase] [--repo-root path]
+  archify edit status <output.html>
+  archify edit stop <output.html>
   archify preview <type> <input.json> [output.html] [--no-open] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify validate <type> <input.json> [--json] [--layout-json] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify migrate workflow <old.json> <new.json> --to-schema 2 [--json]
@@ -2089,6 +2094,9 @@ try {
       break;
     case 'deliver':
       await commandDeliver(args);
+      break;
+    case 'edit':
+      await (await import('./editor-server.mjs')).commandEdit(args);
       break;
     case 'preview':
       await commandPreview(args);

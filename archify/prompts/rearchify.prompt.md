@@ -15,3 +15,7 @@ and layout, retain a backup before replacing HTML, and stop on failed delivery
 without automatic repair iterations. Architecture diagrams gain **Edit layout**;
 other diagram types do not. If an HTML input has no available source JSON, ask
 for the source rather than reverse-engineering the generated HTML.
+
+After successful local architecture delivery, follow the skill's background
+editing-service handoff: start it, return the live editor URL alongside the
+standalone HTML, and include the stop command.

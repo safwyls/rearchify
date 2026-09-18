@@ -41,6 +41,68 @@ Escape cancels a boundary drag. All edits support undo/redo and saved HTML/JSON.
 Drawn or manually adjusted boundaries use `rect: [x, y, width, height]` and
 update `wraps` to the fully enclosed nodes. These frames stay fixed; untouched
 boundaries continue to size automatically around their members.
+
+**Apply & close** updates only the currently open page; it does not overwrite
+files. It reloads the page and restores a tab-local draft before the reader
+initializes, preserving edit history and the local save revision. Browser
+session storage is required for Apply; downloads remain available if storage
+is blocked. The temporary transfer is consumed on that reload.
+
+**Download HTML** saves a standalone editable copy, including
+the edited spec and history, which can be reopened later. **Save JSON** downloads
+the edited source for regeneration and full CLI delivery checks. The edited
+diagram notice describes validation status independently of whether a copy was
+saved; browser layout checks do not replace the full delivery workflow.
+
+For direct overwrite from the main view, start the local save service:
+
+With the CLI installed on your command path, run `archify edit` from a project.
+It discovers architecture JSON, uses delivery receipts/session metadata to find
+existing HTML, and opens the editor in your browser. Multiple diagrams get a
+numbered terminal chooser. Use `archify edit path/to/diagram.json` (or its HTML)
+to select directly, or add `--no-open` to print the URL without opening a browser.
+Without a terminal, ambiguous discovery prints the choices and asks for a path.
+Dependency and hidden folders are skipped. For explicit paths or validation options:
+
+```bash
+node archify/bin/archify.mjs edit start architecture path/to/source.json path/to/diagram.html --quality showcase
+```
+
+The command returns JSON with a localhost URL and starts a hidden background
+process. Repeating it with the same paths and validation settings reuses the
+service. Local architecture skill handoffs run it after delivery by default.
+Session metadata lives beside the output in `<output.html>.editor-session.json`;
+it is local process state, not part of the portable artifact. Do not distribute it.
+Validation options persist separately in `<output.html>.editor-settings.json` so
+discovery and restart retain the same quality and repository root after stopping.
+Keep this local settings file private too. A page request rejects HTML whose
+embedded source no longer matches the JSON; redeliver external edits first.
+Missing source/artifact files return a recoverable error without stopping the service.
+Use `archify edit status <output.html>` and `archify edit stop <output.html>`
+(or `node bin/archify.mjs ...` from the skill directory) to inspect or stop it.
+Stop refuses while a delivery is in progress; retry after it finishes.
+Closing a tab does not stop the process. For a foreground service with Ctrl+C,
+omit `start`: `archify edit architecture <input.json> <output.html>`.
+
+Open the printed localhost URL. Edit, choose
+**Apply & close**, then **Save & deliver** in the main toolbar. This button appears
+only for an edited draft with a successful service heartbeat. Liveness is checked
+every five seconds with a two-second timeout; standalone HTML and delivered
+diagrams hide it. Editor toolbar buttons show brief pressed feedback on activation.
+The service runs
+the normal `deliver` command against a staged specification. Only after delivery
+passes does it replace the source JSON and HTML and write an adjacent
+`.delivery.json` receipt with their hashes. It then reloads the verified diagram.
+Failed validation leaves the original files intact. A changed source or HTML
+rejects a stale save; download the draft before reloading to resolve the conflict.
+File-write failure rolls back committed files, retaining recovery backups if
+rollback itself fails. These deterministic delivery checks do not include
+automated browser evidence or perceptual visual review.
+
+The service binds only to loopback, exposes one configured file pair, and uses
+a per-session token plus same-origin requests. Standalone downloads omit the
+live save session and continue to support offline editing. Restart the start
+command to edit and save later. Direct `deliver` calls never start a service.
 Moving a node into or out of a fixed frame updates its membership too. CLI
 validation rejects fixed frames whose `wraps` disagree with the enclosed nodes.
 Explicit rectangles never expand to fit a label; shorten the label or resize

@@ -3,13 +3,48 @@ import { fixedBoundaryMembers } from '../archify/renderers/architecture/boundary
 import { RESOLVED_MARK } from '../archify/renderers/shared/brand-rendering.mjs';
 import { routePorts, pinRoute, moveSegment, moveBend, addJog, moveNode, moveEndpoint, removeJog, mergeNearbyBends, nearestSegment, snapLabel } from './architecture-path-edit.mjs';
 
-// This editor owns a separate canvas. Reader modules retain their original SVG
-// and event bindings until Apply rebuilds the document from its startup snapshot.
+const draftKey = 'archify-apply:' + location.href.split('#')[0];
+
+// This bundle runs before viewer initialization. Apply navigates normally, then
+// restores the draft SVG before any reader caches geometry or installs handlers.
+// document.open/write inside a pointer event can corrupt subsequent exit events
+// for every component, even if each component's listeners are reinstalled.
+function restoreAppliedDraft() {
+  try {
+    const stored = sessionStorage.getItem(draftKey);
+    if (!stored) return;
+    const { data, saveSession } = JSON.parse(stored);
+    const rendered = JSON.parse(JSON.stringify(data.spec));
+    rendered.components.forEach(node => {
+      if (data.brands?.[node.id]) node[RESOLVED_MARK] = data.brands[node.id];
+    });
+    const svg = createArchitectureScene(rendered).renderSvg();
+    document.querySelector('.diagram-container > svg').outerHTML = svg;
+    document.getElementById('archify-editor-data').textContent = JSON.stringify(data)
+      .replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
+    window.__archifyRestoredSaveSession = saveSession;
+    sessionStorage.removeItem(draftKey);
+  } catch (error) {
+    window.__archifyDraftRestoreError = error.message;
+  }
+}
+restoreAppliedDraft();
+
+// The editor owns a separate canvas; Apply starts a fresh document lifecycle.
 function initializeEditor() {
   const dataElement = document.getElementById('archify-editor-data');
   if (!dataElement) return;
   const data = JSON.parse(dataElement.textContent);
-  const pristine = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const saveSession = document.getElementById('archify-save-session');
+  const localSave = window.__archifyRestoredSaveSession || (saveSession ? JSON.parse(saveSession.textContent) : null);
+  const shell = new DOMParser().parseFromString(window.__archifyEditorShell || '<!DOCTYPE html>\n' + document.documentElement.outerHTML, 'text/html');
+  if (window.__archifyEditorShell) {
+    // These scripts arrive after the reader's early snapshot was captured.
+    for (const element of [dataElement, document.getElementById('archify-editor-runtime'), saveSession]) {
+      if (element && !shell.getElementById(element.id)) shell.body.append(shell.importNode(element, true));
+    }
+  }
+  const pristine = '<!DOCTYPE html>\n' + shell.documentElement.outerHTML;
   const copy = value => JSON.parse(JSON.stringify(value));
   let spec = copy(data.spec);
   let undo = data.undo || [];
@@ -36,6 +71,11 @@ function initializeEditor() {
     #architecture-editor .editor-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     #architecture-editor button, #architecture-editor input, #architecture-editor select { font:inherit; color:inherit; background:#263246; border:1px solid #8290a8; border-radius:5px; padding:6px 10px; }
     #architecture-editor button:disabled { opacity:.4; }
+    #architecture-editor .editor-controls button:not(:disabled):active, #architecture-editor .editor-controls button.editor-clicked { background:#42618a; border-color:#93c5fd; box-shadow:inset 0 2px 4px #0005; transform:translateY(1px); }
+    #btn-save-deliver[hidden] { display:none !important; }
+    #btn-save-deliver { background:#b91c1c; border-color:#f87171; color:#fff; }
+    #btn-save-deliver:hover:not(:disabled) { background:#991b1b; border-color:#fca5a5; }
+    #btn-save-deliver:active:not(:disabled) { background:#7f1d1d; transform:translateY(1px); }
     #architecture-editor input[type=checkbox] { accent-color:#60a5fa; }
     #architecture-editor input[type=text] { flex:1; min-width:120px; }
     #architecture-editor .editor-stage { flex:1; min-height:160px; overflow:hidden; background:var(--bg,#101827); border:1px solid #536177; border-radius:6px; touch-action:none; }
@@ -69,10 +109,71 @@ function initializeEditor() {
   trigger.type = 'button';
   trigger.textContent = t('Edit layout', '编辑布局');
   document.querySelector('.toolbar').append(trigger);
+  const saveButton = document.createElement('button');
+  saveButton.id = 'btn-save-deliver';
+  saveButton.type = 'button';
+  saveButton.textContent = t('Save & deliver', '保存并交付');
+  saveButton.hidden = true;
+  let serviceAlive = false;
+  let saving = false;
+  let heartbeatTimer;
+  let heartbeatController;
+  function updateSaveButton() {
+    const hidden = !data.edited || !serviceAlive;
+    const changed = saveButton.hidden !== hidden;
+    saveButton.hidden = hidden;
+    saveButton.disabled = saving || !serviceAlive;
+    if (changed) window.dispatchEvent(new Event('resize'));
+  }
+  async function heartbeat() {
+    clearTimeout(heartbeatTimer);
+    if (!localSave?.heartbeatUrl || heartbeatController) return;
+    const controller = new AbortController();
+    heartbeatController = controller;
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    try {
+      const response = await fetch(localSave.heartbeatUrl, { headers: { 'X-Archify-Token': localSave.token }, cache: 'no-store', signal: controller.signal });
+      serviceAlive = response.ok && (await response.json()).ok === true;
+    } catch { serviceAlive = false; }
+    finally {
+      clearTimeout(timeout);
+      heartbeatController = null;
+      updateSaveButton();
+      heartbeatTimer = setTimeout(heartbeat, 5000);
+    }
+  }
+  window.addEventListener('offline', () => { serviceAlive = false; updateSaveButton(); });
+  window.addEventListener('online', heartbeat);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); });
+  window.addEventListener('pagehide', () => { clearTimeout(heartbeatTimer); heartbeatController?.abort(); });
+  heartbeat();
+  saveButton.title = localSave ? t(`Overwrite ${localSave.input} and ${localSave.output} after full delivery checks pass.`, `完整交付检查通过后覆盖 ${localSave.input} 和 ${localSave.output}。`) : t('Open with: archify edit architecture <input.json> <output.html> to enable saving to disk.', '使用 archify edit architecture <input.json> <output.html> 打开，以启用磁盘保存。');
+  document.querySelector('.toolbar').append(saveButton);
+  saveButton.addEventListener('click', async () => {
+    if (!localSave || !data.edited || !serviceAlive || saving) return;
+    let note = document.querySelector('.architecture-edit-note');
+    if (!note) { note = document.createElement('p'); note.className = 'architecture-edit-note'; document.querySelector('.diagram-container').before(note); }
+    note.setAttribute('role', 'status');
+    const message = value => { note.textContent = value; window.Archify?.readerLayout?.schedule?.(); window.dispatchEvent(new Event('resize')); };
+    saving = true; updateSaveButton(); trigger.disabled = true;
+    message(t('Running full delivery checks. Files will update only after checks pass…', '正在运行完整交付检查。检查通过后才会更新文件…'));
+    try {
+      const response = await fetch(localSave.saveUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Archify-Token': localSave.token }, body: JSON.stringify({ revision: localSave.revision, spec: data.spec }) });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Delivery failed.');
+      // Navigate to the newly delivered artifact. It embeds the committed JSON
+      // and receives a fresh session revision from the local service.
+      window.location.reload();
+    } catch (error) {
+      message(t('Save failed: ', '保存失败：') + error.message + t(' Your edits remain in this page; you can download a copy.', '您的编辑仍保留在此页面，可下载副本。'));
+      saving = false; updateSaveButton(); trigger.disabled = false;
+      heartbeat();
+    }
+  });
   if (dirty) {
     const note = document.createElement('p');
     note.className = 'architecture-edit-note';
-    note.textContent = t('Edited draft · Delivery checks have not been run.', '已编辑草稿 · 尚未运行交付检查。');
+    note.textContent = t('Edited diagram · Full delivery checks have not been run. This notice is about validation, not save status.', '已编辑图表 · 尚未运行完整交付检查。此提示表示验证状态，而非保存状态。');
     document.querySelector('.diagram-container').before(note);
   }
   const dialog = document.createElement('dialog');
@@ -87,9 +188,9 @@ function initializeEditor() {
       <label><input type="checkbox" data-control="snap" checked> ${t('Snap to 10px grid', '吸附到 10px 网格')}</label>
       <button type="button" data-action="fit">${t('Fit', '适应画布')}</button>
       <button type="button" data-action="validate">${t('Check layout', '检查布局')}</button>
-      <button type="button" data-action="json">${t('Save JSON', '保存 JSON')}</button>
-      <button type="button" data-action="html">${t('Download HTML', '下载 HTML')}</button>
-      <button type="button" data-action="apply">${t('Apply & close', '应用并关闭')}</button>
+      <button type="button" data-action="json" title="${t('Download the edited source for regeneration and delivery checks.', '下载编辑后的源文件，用于重新生成和交付检查。')}">${t('Save JSON', '保存 JSON')}</button>
+      <button type="button" data-action="html" title="${t('Save a standalone editable copy that retains your changes when reopened.', '保存独立可编辑副本，重新打开时保留更改。')}">${t('Download HTML', '下载 HTML')}</button>
+      <button type="button" data-action="apply" title="${t('Update this page only. Download HTML or Save JSON to keep changes beyond this session.', '仅更新当前页面。请下载 HTML 或保存 JSON 以持久保留更改。')}">${t('Apply & close', '应用并关闭')}</button>
       <button type="button" data-action="cancel">${t('Cancel', '取消')}</button>
     </div>
     <p class="editor-help">${t('Right-click empty canvas to draw a boundary, or an object for actions (Shift+F10). Drag labels near a segment to snap; hold Alt for free placement. Nearby corners merge. Drag background to pan; scroll to zoom. Ctrl/Cmd+Z: undo.', '右键单击节点或连线打开操作（键盘：Shift+F10）。标签靠近线段时吸附，按住 Alt 自由移动。相邻转角靠近时合并。拖动画布平移，滚轮缩放。Ctrl/Cmd+Z：撤销。')}</p>
@@ -166,7 +267,9 @@ function initializeEditor() {
           style: `cursor:${point[1] === end[1] ? 'ns-resize' : 'ew-resize'}` }));
       });
     });
-    svg.insertBefore(hits, svg.querySelector('[data-node-id]'));
+    // Wide segment hit targets must stay behind labels, otherwise dragging a
+    // label that lies on its route moves the connector instead.
+    svg.insertBefore(hits, svg.querySelector('g[data-edge-key], [data-node-id]'));
     svg.querySelectorAll('rect[data-graph-role="structural-frame"]').forEach(frame => {
       const index = Number(frame.dataset.compositionFrameId);
       const attributes = { x: frame.getAttribute('x'), y: frame.getAttribute('y'), width: frame.getAttribute('width'), height: frame.getAttribute('height'), fill: 'none', stroke: index === selectedBoundary ? '#60a5fa' : 'transparent', 'stroke-width': 10, 'vector-effect': 'non-scaling-stroke', 'pointer-events': 'stroke', 'data-editor-boundary': index, style: 'cursor:move', tabindex: 0, 'aria-label': spec.boundaries[index].label };
@@ -216,6 +319,9 @@ function initializeEditor() {
       })));
       svg.append(handles);
     }
+    // A label mask can overlap a bend handle after routing. Keep the visible
+    // label on top so its text remains a label drag, not a geometry edit.
+    svg.querySelectorAll('g[data-edge-key]').forEach(label => svg.append(label));
     if (snapPreview) {
       const points = geometry.connections[snapPreview.edge].points;
       const a = points[snapPreview.index], b = points[snapPreview.index + 1];
@@ -312,6 +418,7 @@ function initializeEditor() {
     // Serialize the startup document, never the modal, focus overlays, camera,
     // export receipts, or other transient state from the current viewer.
     const doc = new DOMParser().parseFromString(pristine, 'text/html');
+    doc.getElementById('archify-save-session')?.remove();
     const svg = new DOMParser().parseFromString(sceneFor(spec).renderSvg(), 'image/svg+xml').documentElement;
     doc.querySelector('.diagram-container > svg').replaceWith(doc.importNode(svg, true));
     const payload = { spec, brands: data.brands, edited: dirty, undo, redo, preferences: { snapLabels } };
@@ -429,17 +536,30 @@ function initializeEditor() {
     html: () => { check(); download(editedHtml(), 'text/html', 'architecture-edited.html'); },
     apply: () => {
       check();
-      const html = editedHtml();
-      // Reinitialize reader modules against the edited canonical SVG.
-      document.open();
-      document.write(html);
-      document.close();
+      // Keep Apply session-local. Preserve the revision the user actually edited
+      // so reloading cannot silently bypass Save & deliver's conflict detection.
+      try {
+        sessionStorage.setItem(draftKey, JSON.stringify({
+          data: { spec, brands: data.brands, edited: dirty, undo, redo, preferences: { snapLabels } },
+          saveSession: localSave,
+        }));
+      } catch {
+        throw new Error(t('Apply needs browser session storage. Download HTML to keep your edits.', '应用更改需要浏览器会话存储。请下载 HTML 以保留编辑。'));
+      }
+      location.reload();
     },
     cancel: () => { dialog.close(); trigger.focus(); },
   };
   dialog.addEventListener('click', event => {
-    const action = event.target.closest('[data-action]')?.dataset.action;
+    const clicked = event.target.closest('[data-action]');
+    const action = clicked?.dataset.action;
     if (!action) return;
+    if (clicked.disabled) return;
+    if (clicked.closest('.editor-controls')) {
+      clicked.classList.add('editor-clicked');
+      clearTimeout(clicked.feedbackTimer);
+      clicked.feedbackTimer = setTimeout(() => clicked.classList.remove('editor-clicked'), 240);
+    }
     try {
       const wasMenu = menu.contains(event.target);
       actions[action]();

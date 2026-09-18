@@ -66,11 +66,19 @@ export function writeDiagram({ outPath, template, diagramType, meta, svg, cards,
     sourceEvidence,
   });
   if (editorData) {
+    // Capture authored chrome before reader modules add hit targets, radar SVGs,
+    // lens controls and transient state. Apply must never serialize those back
+    // into a page that initializes the reader a second time.
+    const readerStart = '    var Archify = {};';
+    if (!html.includes(readerStart)) throw new Error('Architecture editor requires the viewer initialization marker.');
+    html = html.replace(readerStart, `    window.__archifyEditorShell = '<!DOCTYPE html>\\n' + document.documentElement.outerHTML;\n${readerStart}`);
     const bundle = fs.readFileSync(new URL('../../assets/architecture-editor.js', import.meta.url), 'utf8');
     const json = JSON.stringify(editorData).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
     // A self-contained data URL keeps renderer SVG literals out of HTML scans
     // and requires neither a network fetch nor dynamic code evaluation.
-    html = html.replace('</body>', () => `<script id="archify-editor-data" type="application/json">${json}</script>\n<script src="data:text/javascript;base64,${Buffer.from(bundle).toString('base64')}"></script>\n</body>`);
+    const readerScript = '  <script>\n    window.__archifyEditorShell';
+    if (!html.includes(readerScript)) throw new Error('Architecture editor requires a reader script boundary.');
+    html = html.replace(readerScript, () => `<script id="archify-editor-data" type="application/json">${json}</script>\n<script id="archify-editor-runtime" src="data:text/javascript;base64,${Buffer.from(bundle).toString('base64')}"></script>\n${readerScript}`);
   }
   fs.writeFileSync(outPath, html);
   outputPathGuards.delete(outPath);
