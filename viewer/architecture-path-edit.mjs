@@ -6,6 +6,33 @@ const horizontal = side => side === 'left' || side === 'right';
 const clonePoints = points => points.map(point => [...point]);
 const boxWithCenter = box => ({ ...box, cx: box.x + box.width / 2, cy: box.y + box.height / 2 });
 
+export function snapNodePosition(box, position, grid = 10) {
+  return position.map((value, axis) => {
+    const half = (axis ? box.height : box.width) / 2;
+    return Math.max(Math.ceil(half / grid) * grid, Math.round((value + half) / grid) * grid) - half;
+  });
+}
+
+function nearestAxis(value, candidates, tolerance) {
+  if (!(tolerance > 0)) return value;
+  const nearby = candidates.filter(candidate => Math.abs(candidate - value) <= tolerance);
+  nearby.sort((a, b) => Math.abs(a - value) - Math.abs(b - value));
+  return nearby.length ? nearby[0] : value;
+}
+
+// Snap only to coordinates that remain fixed during this drag. An adjoining
+// corner follows one axis of the handle, so that axis is not a snap target.
+export function snapBend(points, index, position, tolerance) {
+  return position.map((value, axis) => nearestAxis(value, points.filter((point, other) => {
+    if (other === index) return false;
+    if (other === index - 1 && other > 0 || other === index + 1 && other < points.length - 1) {
+      const followingAxis = points[index][1] === point[1] ? 1 : 0;
+      if (axis === followingAxis) return false;
+    }
+    return true;
+  }).map(point => point[axis]), tolerance));
+}
+
 // Resolve the actual port from measured geometry, including spread automatic
 // ports. Pinning a route disables automatic port spreading in the renderer, so
 // manual routes reconnect to the canonical center of that same endpoint side.
@@ -25,7 +52,7 @@ export function routePorts(spec, index, geometry) {
   return { fromSide, toSide, start: anchor(from, fromSide, connection.fromOffset), end: anchor(to, toSide, connection.toOffset) };
 }
 
-export function moveEndpoint(spec, index, endpoint, position, geometry) {
+export function moveEndpoint(spec, index, endpoint, position, geometry, tolerance = 0) {
   const connection = spec.connections[index];
   const points = clonePoints(geometry.connections[index].points);
   // Preserve both measured attachments when converting automatic ports to pins.
@@ -40,7 +67,12 @@ export function moveEndpoint(spec, index, endpoint, position, geometry) {
   const oldSide = connection[`${endpoint}Side`];
   const side = sideAt(box, position);
   const length = horizontal(side) ? box.height : box.width;
-  const along = horizontal(side) ? position[1] - box.y : position[0] - box.x;
+  const axis = horizontal(side) ? 1 : 0;
+  const base = horizontal(side) ? box.y : box.x;
+  const adjacent = endpoint === 'from' ? 1 : points.length - 2;
+  const own = endpoint === 'from' ? 0 : points.length - 1;
+  const candidates = [base + length / 2, ...points.filter((_, i) => i !== own && (points.length === 2 || i !== adjacent)).map(point => point[axis])];
+  const along = nearestAxis(position[axis], candidates, tolerance) - base;
   // Keep handles clear of rounded corners while allowing every side.
   const margin = Math.min(8, length / 4);
   connection[`${endpoint}Side`] = side;
@@ -90,6 +122,8 @@ function connectPorts(start, end, fromSide, toSide) {
 export function attachRoute(points, ports) {
   const { start, end, fromSide, toSide } = ports;
   const interior = clonePoints(points.slice(1, -1));
+  while (interior.length && interior[0][0] === start[0] && interior[0][1] === start[1]) interior.shift();
+  while (interior.length && interior.at(-1)[0] === end[0] && interior.at(-1)[1] === end[1]) interior.pop();
   if (!interior.length) return connectPorts(start, end, fromSide, toSide);
   const attached = normalizeRoutePoints([
     ...bridgeToInterior(start, interior[0], fromSide).slice(0, -1),
@@ -144,10 +178,11 @@ export function moveSegment(points, index, distance, ports, mergeTolerance = 0) 
   return attachRoute(simplifySpurs(moved), ports);
 }
 
-export function moveBend(points, index, dx, dy, ports) {
+export function moveBend(points, index, dx, dy, ports, tolerance = 0) {
   const moved = clonePoints(points);
   const point = moved[index];
-  point[0] += dx; point[1] += dy;
+  const target = snapBend(points, index, [point[0] + dx, point[1] + dy], tolerance);
+  point[0] = target[0]; point[1] = target[1];
   if (index > 1) {
     const axis = points[index - 1][1] === points[index][1] ? 1 : 0;
     moved[index - 1][axis] = point[axis];
@@ -156,7 +191,7 @@ export function moveBend(points, index, dx, dy, ports) {
     const axis = points[index + 1][1] === points[index][1] ? 1 : 0;
     moved[index + 1][axis] = point[axis];
   }
-  return attachRoute(moved, ports);
+  return attachRoute(simplifySpurs(moved), ports);
 }
 
 export function addJog(points, index, offset = 40) {
@@ -288,7 +323,7 @@ export function mergeNearbyBends(points, ports, tolerance, around) {
 
 export function moveNode(spec, id, x, y, geometry) {
   const node = spec.components.find(candidate => candidate.id === id);
-  node.pos = [Math.max(0, Math.round(x)), Math.max(0, Math.round(y))];
+  node.pos = [Math.max(0, x), Math.max(0, y)];
   delete node.row; delete node.col;
   const movedGeometry = { ...geometry, components: geometry.components.map(box => box.id === id
     ? { ...box, x: node.pos[0], y: node.pos[1] } : box) };

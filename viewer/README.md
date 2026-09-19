@@ -14,8 +14,14 @@ the escaped source JSON and resolved brand artwork. No build tools or server are
 needed by installed skills or generated diagrams. Other diagram types do not
 include this bundle.
 
-The modal owns its own SVG and camera. Each edit recomputes the scene, including
-routes and frames; pointer release commits one undo transaction and runs layout
+The modal owns its own SVG and camera, with node-center grid snapping and
+orthogonal path edits. Endpoint handles snap to
+node-edge centers and nearby path-handle coordinates; bends align with nearby
+handle axes and redundant jogs collapse without changing the fixed node sides.
+Proximity uses a 10-screen-pixel tolerance independent of zoom. Alt bypasses
+snapping, and each preview starts from the drag snapshot so pulling away restores
+the path. Fractional node positions preserve centers for odd-sized nodes.
+Each edit recomputes routes and frames; pointer release commits one undo transaction and runs layout
 checks. Apply transfers the spec/history through tab-local session storage and
 performs a real reload. The editor bootstrap restores the canonical SVG before
 reader modules initialize. Never use document.open/write for Apply: replacing

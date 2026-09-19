@@ -1,7 +1,7 @@
 import { createArchitectureScene } from '../archify/renderers/architecture/architecture-scene.mjs';
 import { fixedBoundaryMembers } from '../archify/renderers/architecture/boundary-membership.mjs';
 import { RESOLVED_MARK } from '../archify/renderers/shared/brand-rendering.mjs';
-import { routePorts, pinRoute, moveSegment, moveBend, addJog, moveNode, moveEndpoint, removeJog, mergeNearbyBends, nearestSegment, snapLabel } from './architecture-path-edit.mjs';
+import { routePorts, pinRoute, moveSegment, moveBend, addJog, moveNode, moveEndpoint, removeJog, mergeNearbyBends, nearestSegment, snapLabel, snapNodePosition } from './architecture-path-edit.mjs';
 
 const draftKey = 'archify-apply:' + location.href.split('#')[0];
 
@@ -185,7 +185,7 @@ function initializeEditor() {
       <strong>${t('Edit layout', '编辑布局')}</strong>
       <button type="button" data-action="undo">${t('Undo', '撤销')}</button>
       <button type="button" data-action="redo">${t('Redo', '重做')}</button>
-      <label><input type="checkbox" data-control="snap" checked> ${t('Snap to 10px grid', '吸附到 10px 网格')}</label>
+      <label><input type="checkbox" data-control="snap" checked> ${t('10px grid (node centers)', '10px 网格（节点中心）')}</label>
       <button type="button" data-action="fit">${t('Fit', '适应画布')}</button>
       <button type="button" data-action="validate">${t('Check layout', '检查布局')}</button>
       <button type="button" data-action="json" title="${t('Download the edited source for regeneration and delivery checks.', '下载编辑后的源文件，用于重新生成和交付检查。')}">${t('Save JSON', '保存 JSON')}</button>
@@ -193,7 +193,7 @@ function initializeEditor() {
       <button type="button" data-action="apply" title="${t('Update this page only. Download HTML or Save JSON to keep changes beyond this session.', '仅更新当前页面。请下载 HTML 或保存 JSON 以持久保留更改。')}">${t('Apply & close', '应用并关闭')}</button>
       <button type="button" data-action="cancel">${t('Cancel', '取消')}</button>
     </div>
-    <p class="editor-help">${t('Right-click empty canvas to draw a boundary, or an object for actions (Shift+F10). Drag labels near a segment to snap; hold Alt for free placement. Nearby corners merge. Drag background to pan; scroll to zoom. Ctrl/Cmd+Z: undo.', '右键单击节点或连线打开操作（键盘：Shift+F10）。标签靠近线段时吸附，按住 Alt 自由移动。相邻转角靠近时合并。拖动画布平移，滚轮缩放。Ctrl/Cmd+Z：撤销。')}</p>
+    <p class="editor-help">${t('Right-click for actions or boundaries (Shift+F10). Endpoints snap to edge centers; nearby path handles align and straighten. Labels snap to paths. Hold Alt to bypass snapping. Drag background to pan; scroll to zoom. Ctrl/Cmd+Z: undo.', '右键打开操作或绘制边界（Shift+F10）。端点吸附到节点边缘中心，相邻路径控制点对齐并拉直。标签吸附到路径。按住 Alt 跳过吸附。拖动画布平移，滚轮缩放。Ctrl/Cmd+Z：撤销。')}</p>
     <div class="editor-stage" tabindex="0" aria-label="${t('Layout canvas', '布局画布')}"></div>
     <p class="editor-status" role="status" aria-live="polite"></p>
     <div class="editor-popover" id="editor-context" role="menu" aria-label="${t('Edit actions', '编辑操作')}" hidden>
@@ -668,7 +668,8 @@ function initializeEditor() {
       draw({ validate: false });
     } else if (drag.id) {
       if (Math.abs(dx) + Math.abs(dy) < 1) return;
-      move(drag.id, round(drag.box.x + dx), round(drag.box.y + dy));
+      const position = [drag.box.x + dx, drag.box.y + dy];
+      move(drag.id, ...(snap && !event.altKey ? snapNodePosition(drag.box, position) : position.map(Math.round)));
       draw({ validate: false });
     } else if (drag.edge !== null) {
       if (Math.abs(dx) + Math.abs(dy) < 1) return;
@@ -678,8 +679,8 @@ function initializeEditor() {
       if (drag.part.kind === 'endpoint') {
         const endpoint = drag.part.index === 0 ? 'from' : 'to';
         const origin = endpoint === 'from' ? points[0] : points.at(-1);
-        moveEndpoint(spec, drag.edge, endpoint, [origin[0] + dx, origin[1] + dy], drag.geometry);
-        hint = t('Attachment follows the node edge · Drag around a corner to change sides.', '连接点沿节点边缘移动 · 拖过转角可切换边。');
+        moveEndpoint(spec, drag.edge, endpoint, [origin[0] + dx, origin[1] + dy], drag.geometry, event.altKey ? 0 : 10 / drag.scale);
+        hint = t('Snaps to edge centers and path handles · Hold Alt to move freely.', '吸附到边缘中心和路径控制点 · 按住 Alt 自由移动。');
       } else if (drag.part.kind === 'label') {
         const position = [labelAt[0] + dx, labelAt[1] + dy];
         const snapped = snapLabels && !event.altKey ? snapLabel(points, position, 12 / drag.scale) : null;
@@ -694,9 +695,9 @@ function initializeEditor() {
         const index = drag.part.index;
         let moved;
         if (drag.part.kind === 'bend') {
-          const target = [round(points[index][0] + dx), round(points[index][1] + dy)];
-          moved = moveBend(points, index, target[0] - points[index][0], target[1] - points[index][1], ports);
-          const merged = mergeNearbyBends(moved, ports, 10 / drag.scale, target);
+          const target = [points[index][0] + dx, points[index][1] + dy].map(value => event.altKey ? Math.round(value) : round(value));
+          moved = moveBend(points, index, target[0] - points[index][0], target[1] - points[index][1], ports, event.altKey ? 0 : 10 / drag.scale);
+          const merged = mergeNearbyBends(moved, ports, event.altKey ? 0 : 10 / drag.scale, target);
           moved = merged.points;
           if (merged.merged) hint = t('Nearby corners merged · Release to keep, or drag away to restore.', '相邻转角已合并 · 松开保留，移开恢复。');
         } else {

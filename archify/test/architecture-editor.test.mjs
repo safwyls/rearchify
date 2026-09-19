@@ -167,7 +167,8 @@ test('architecture editor supports drag, history, labels, draft checks, download
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x + 50, y: box.y + 60, button: 'left', clickCount: 1 });
     const moved = await pos();
     assert.notDeepEqual(moved, original);
-    assert.equal(moved[0] % 10, 0);
+    const movedCenter = await evaluate(`(() => {const r=document.querySelector('#architecture-editor [data-node-id="db"] > rect');return [Number(r.getAttribute('x'))+Number(r.getAttribute('width'))/2,Number(r.getAttribute('y'))+Number(r.getAttribute('height'))/2]})()`);
+    assert.deepEqual(movedCenter.map(value => value % 10), [0, 0]);
     await click('undo');
     assert.deepEqual(await pos(), original);
     await click('redo');
@@ -330,6 +331,10 @@ test('architecture editor supports drag, history, labels, draft checks, download
     await click('undo');
     assert.deepEqual(await jwtPoints(), nodeMovedJwt);
     await click('redo');
+    assert.deepEqual(await jwtPoints(), endpointMovedJwt);
+    await dragElement('[data-editor-kind="endpoint"][data-editor-edge="1"][data-editor-index="0"]', 0, 8);
+    assert.deepEqual((await jwtPoints())[0], nodeMovedJwt[0], 'nearby endpoint snaps back to its node edge center');
+    await click('undo');
     assert.deepEqual(await jwtPoints(), endpointMovedJwt);
     await click('undo');
     await dragElement('[data-editor-kind="segment"][data-editor-edge="1"][data-editor-index="1"]', 20, 0);

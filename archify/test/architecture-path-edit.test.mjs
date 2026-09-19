@@ -2,10 +2,74 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createArchitectureScene } from '../renderers/architecture/architecture-scene.mjs';
-import { attachRoute, moveNode, moveEndpoint, moveSegment, moveBend, routePorts, pinRoute, addJog, removeJog, mergeNearbyBends, snapLabel } from '../../viewer/architecture-path-edit.mjs';
+import { attachRoute, moveNode, moveEndpoint, moveSegment, moveBend, routePorts, pinRoute, addJog, removeJog, mergeNearbyBends, snapLabel, snapNodePosition } from '../../viewer/architecture-path-edit.mjs';
 import { labelPoint } from '../renderers/shared/geometry.mjs';
 
 const demo = () => JSON.parse(fs.readFileSync(new URL('../examples/web-app.architecture.json', import.meta.url), 'utf8'));
+
+test('node grid snapping uses centers, including odd dimensions and canvas bounds', () => {
+  for (const size of [[130, 64], [131, 65]]) {
+    const box = { width: size[0], height: size[1] };
+    for (const desired of [[102, 109], [-100, -100]]) {
+      const position = snapNodePosition(box, desired);
+      position.forEach((value, axis) => {
+        assert.ok(value >= 0);
+        assert.equal((value + size[axis] / 2) % 10, 0);
+      });
+      const spec = { components: [{ id: 'a' }], connections: [] };
+      moveNode(spec, 'a', ...position, { components: [{ id: 'a', ...box }], connections: [] });
+      assert.deepEqual(spec.components[0].pos, position, 'do not round away half-pixel centers');
+    }
+  }
+  assert.deepEqual(snapNodePosition({ width: 130, height: 64 }, [102, 109]), [105, 108]);
+});
+
+test('endpoints snap to each node edge center with a bounded, optional tolerance', () => {
+  for (const endpoint of ['from', 'to']) for (const side of ['left', 'right', 'top', 'bottom']) {
+    const spec = demo(), index = spec.connections.findIndex(edge => edge.id === 'jwt-verification');
+    const geometry = createArchitectureScene(spec).editGeometry();
+    const edge = spec.connections[index], box = geometry.components.find(node => node.id === edge[endpoint]);
+    const center = side === 'left' ? [box.x, box.y + box.height / 2] : side === 'right' ? [box.x + box.width, box.y + box.height / 2] : side === 'top' ? [box.x + box.width / 2, box.y] : [box.x + box.width / 2, box.y + box.height];
+    const axis = side === 'left' || side === 'right' ? 1 : 0;
+    for (const tolerance of [10, 0, 4]) {
+      const draft = structuredClone(spec), target = [...center]; target[axis] += 5;
+      const routed = moveEndpoint(draft, index, endpoint, target, geometry, tolerance);
+      orthogonal(routed);
+      assert.deepEqual(endpoint === 'from' ? routed[0] : routed.at(-1), tolerance === 10 ? center : target);
+      assert.deepEqual(endpoint === 'from' ? routed.at(-1) : routed[0], endpoint === 'from' ? geometry.connections[index].points.at(-1) : geometry.connections[index].points[0]);
+    }
+  }
+});
+
+test('endpoint proximity to another handle straightens a path in both orientations and directions', () => {
+  for (const vertical of [false, true]) for (const reverse of [false, true]) {
+    const transform = point => vertical ? [point[1], point[0]] : point;
+    let points = [[100, 30], [150, 30], [150, 50], [200, 50]].map(transform);
+    const components = [{ id: 'a', x: 0, y: 0, width: 100, height: 100 }, { id: 'b', x: vertical ? 0 : 200, y: vertical ? 200 : 0, width: 100, height: 100 }];
+    let edge = { from: 'a', to: 'b', fromSide: vertical ? 'bottom' : 'right', toSide: vertical ? 'top' : 'left' };
+    if (reverse) { points.reverse(); edge = { from: 'b', to: 'a', fromSide: edge.toSide, toSide: edge.fromSide }; }
+    const spec = { components, connections: [edge] }, geometry = { components, connections: [{ points }] };
+    const endpoint = reverse ? 'to' : 'from';
+    const expected = [[100,50], [200,50]].map(transform); if (reverse) expected.reverse();
+    const moved = moveEndpoint(spec, 0, endpoint, transform([100, 44]), geometry, 10);
+    assert.deepEqual(moved, expected);
+    orthogonal(moved);
+  }
+});
+
+test('corners align with endpoint and corner axes and collapse jogs, with free movement outside tolerance', () => {
+  for (const vertical of [false, true]) for (const reverse of [false, true]) {
+    const transform = point => vertical ? [point[1], point[0]] : point;
+    let points = [[0,0],[60,0],[60,40],[120,40],[120,0],[180,0]].map(transform);
+    if (reverse) points.reverse();
+    const ports = { start: points[0], end: points.at(-1), fromSide: vertical ? (reverse ? 'top' : 'bottom') : (reverse ? 'left' : 'right'), toSide: vertical ? (reverse ? 'bottom' : 'top') : (reverse ? 'right' : 'left') };
+    const index = reverse ? 3 : 2, delta = transform([0,-34]);
+    assert.deepEqual(moveBend(points, index, ...delta, ports, 10), [ports.start, ports.end]);
+    assert.ok(moveBend(points, index, ...delta, ports, 0).length > 2);
+    assert.ok(moveBend(points, index, ...delta, ports, 5).length > 2);
+    orthogonal(moveBend(points, index, ...transform([0,-20]), ports, 10));
+  }
+});
 test('live attachment cleanup removes partial backtracks in both directions and orientations', () => {
   for (const transpose of [false, true]) for (const reverse of [false, true]) {
     const transform = p => transpose ? [p[1], p[0]] : p;
