@@ -116,7 +116,7 @@ node archify/bin/archify.mjs edit stop diagrams/system.html
 
 直接打开独立 HTML 支持离线编辑，但不能覆盖源文件。**Save JSON** 下载源文件，**Download HTML** 下载不含在线会话的可编辑草稿。将下载的 JSON 保存到预期路径后，再运行 `deliver`。详见[编辑控件](archify/references/viewer-runtime.md)。
 
-**远程开发：**可使用 `--port 8787` 配合 SSH 端口转发，或通过 `--host`、`--port`、`--origin`、`--tls-cert` 和 `--tls-key` 启用直接 HTTPS。非回环绑定必须使用 TLS；网络暴露配置不会保存为默认值。详见[主机名访问与 SSH 示例](archify/references/remote-editor.md)。
+**远程开发：**可使用 `--port 8787` 配合 SSH 端口转发，或通过 `--host`、`--port`、`--origin`、`--tls-cert` 和 `--tls-key` 启用直接 HTTPS。非回环绑定默认要求 TLS；仅显式传入 `--allow-insecure-http` 时允许未加密 HTTP。网络暴露配置不会保存为默认值。详见[主机名访问与 SSH 示例](archify/references/remote-editor.md)。
 
 ## 看看 Archify 能做什么
 

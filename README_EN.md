@@ -140,7 +140,7 @@ then rerun `deliver`. See [editor controls](archify/references/viewer-runtime.md
 
 **Remote development:** use SSH port forwarding with `--port 8787`, or direct HTTPS
 with `--host`, `--port`, `--origin`, `--tls-cert`, and `--tls-key`. Non-loopback
-binding requires TLS; network exposure is never remembered as a default.
+binding requires TLS unless you explicitly pass `--allow-insecure-http` (unencrypted); network exposure is never remembered as a default.
 See [hostname access and SSH examples](archify/references/remote-editor.md).
 
 ## See Archify in action

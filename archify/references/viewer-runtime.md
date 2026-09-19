@@ -192,4 +192,4 @@ After a non-empty authored reachability query, the reader may use **Export → R
 
 Viewer exports are communication assets. They do not replace the checked HTML, the deterministic delivery receipt, or a real visual review. Do not add a hosted service, storage surface, dependency, schema branch, or mobile product surface for these viewer-only capabilities.
 
-For explicitly requested remote access, see [hostname binding and SSH forwarding](remote-editor.md). Non-loopback binding requires TLS and exact browser-origin checks.
+For explicitly requested remote access, see [hostname binding and SSH forwarding](remote-editor.md). Non-loopback binding requires TLS unless the user explicitly requests `--allow-insecure-http`; exact browser-origin checks apply in both modes.

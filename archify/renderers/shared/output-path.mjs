@@ -82,7 +82,7 @@ function nearestExistingDirectory(targetPath) {
   let directory = path.dirname(targetPath);
   while (true) {
     try {
-      const stat = fs.statSync(directory);
+      const stat = fs.statSync(directory, { bigint: true });
       if (stat.isDirectory()) {
         return {
           path: fs.realpathSync.native(directory),
@@ -119,8 +119,8 @@ function probeNamesAlias(directoryPath, authoredName, lookupName) {
     let authored;
     let lookup;
     try {
-      authored = fs.statSync(authoredPath);
-      lookup = fs.statSync(lookupPath);
+      authored = fs.statSync(authoredPath, { bigint: true });
+      lookup = fs.statSync(lookupPath, { bigint: true });
     } catch (error) {
       if (error.code === 'ENOENT') result = false;
     }
@@ -220,8 +220,9 @@ function futurePathsAlias(leftPath, rightPath) {
 export function pathsAlias(leftPath, rightPath) {
   if (futurePathsAlias(leftPath, rightPath)) return true;
   try {
-    const left = fs.statSync(leftPath);
-    const right = fs.statSync(rightPath);
+    // Windows file IDs can exceed Number's exact integer range.
+    const left = fs.statSync(leftPath, { bigint: true });
+    const right = fs.statSync(rightPath, { bigint: true });
     return sameFileIdentity(left, right);
   } catch {
     return false;

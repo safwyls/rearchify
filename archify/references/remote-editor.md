@@ -41,14 +41,34 @@ Open the returned `https://dev.example.com:8787/<session-token>/` URL. Prefer
 binding a specific interface IP instead of `0.0.0.0` when possible, and restrict
 firewall access to intended clients. IPv6 bind addresses (such as `::1` or `::`)
 are supported; wildcard addresses require an explicit browser `--origin`.
-Non-loopback binding always requires both TLS files; there is no insecure HTTP
-override. Certificate errors are not bypassed by the application.
+Non-loopback binding requires both TLS files by default. Certificate errors are
+not bypassed by the application. Explicit unencrypted HTTP is available below.
 
 The tokenized URL grants access to read and overwrite this one source/HTML pair.
 Treat it as a password: do not share it, include it in screenshots, or retain it
 in proxy access logs. Tokens rotate when the service restarts. Downloaded HTML
 omits the live session. The browser still uses **Edit layout → Apply & close →
 Save & deliver**, with the same validation and conflict handling as local use.
+
+## Explicit unencrypted HTTP
+
+Only when the user explicitly requests insecure HTTP, pass `--allow-insecure-http`:
+
+```bash
+node archify/bin/archify.mjs edit start architecture diagrams/system.json diagrams/system.html --host 0.0.0.0 --port 8787 --origin http://dev.example.com:8787 --allow-insecure-http
+```
+
+Open the returned tokenized HTTP URL. This sends diagram content and the session
+token without encryption; anyone able to intercept the connection can read them
+and use the token to save changes. Use only on a network you trust.
+Host, Origin, token, validation, and conflict checks remain active.
+
+The flag also works with foreground editing and discovery, for example
+`edit diagrams/system.html --host 0.0.0.0 --port 8787 --origin http://dev.example.com:8787 --allow-insecure-http`.
+Supply it on every start or reuse; it is never inherited from discovered metadata
+or stored as a persistent default. It cannot be combined with TLS certificates
+or an HTTPS origin. Wildcard binding still requires an explicit browser origin.
+Agents must not add this flag automatically after TLS setup fails.
 
 ## Lifecycle and request checks
 

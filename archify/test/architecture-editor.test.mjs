@@ -115,6 +115,15 @@ test('architecture editor supports drag, history, labels, draft checks, download
       return result.result.value;
     };
     await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.editorErrors = [];
+      // Headless Windows may have no attached mouse. This test exercises desktop hover.
+      const nativeMatchMedia = window.matchMedia.bind(window);
+      window.matchMedia = query => {
+        const media = nativeMatchMedia(query);
+        if (query === '(hover: hover)' || query === '(hover: hover) and (pointer: fine)') {
+          Object.defineProperty(media, 'matches', { value: true });
+        }
+        return media;
+      };
       addEventListener('error', e => editorErrors.push(e.message));
       addEventListener('unhandledrejection', e => editorErrors.push(String(e.reason)));` });
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });

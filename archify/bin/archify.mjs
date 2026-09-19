@@ -24,6 +24,7 @@ function usage() {
   archify edit stop <output.html>
     Editor network options: --host <address> --port <0-65535> --origin <browser-origin>
     Direct remote HTTPS requires: --tls-cert <cert.pem> --tls-key <key.pem>
+    Explicit unencrypted remote HTTP opt-in: --allow-insecure-http
   archify preview <type> <input.json> [output.html] [--no-open] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify validate <type> <input.json> [--json] [--layout-json] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify migrate workflow <old.json> <new.json> --to-schema 2 [--json]

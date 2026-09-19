@@ -2,9 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { openArtifact, openLoopbackUrl } from '../bin/open-artifact.mjs';
+import { openArtifact, openLoopbackUrl, openEditorUrl } from '../bin/open-artifact.mjs';
 
 const target = path.resolve("/tmp/-复杂 path 'quoted'/diagram.html");
+
+test('opening remote HTTP editor URLs requires explicit consent', () => {
+  const url = `http://dev.test:8787/${'a'.repeat(64)}/`;
+  const options = { platform: 'linux', spawn(command, args) {
+    assert.equal(command, 'xdg-open'); assert.deepEqual(args, [url]);
+    return { status: 0 };
+  } };
+  assert.throws(() => openEditorUrl(url, options), /explicit/);
+  assert.throws(() => openEditorUrl(url, { ...options, allowInsecureHttp: 'true' }), /explicit/);
+  assert.equal(openEditorUrl(url, { ...options, allowInsecureHttp: true }).status, 'opened');
+});
 
 test('open artifact: uses argument arrays without shell interpolation on every supported platform', () => {
   const cases = [

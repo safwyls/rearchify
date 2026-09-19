@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import https from 'node:https';
+import http from 'node:http';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -35,6 +36,59 @@ test('network options fail closed and keep HTTP limited to literal loopback bind
   assert.throws(() => parseEditorOptions(['--port']), /incomplete/);
   assert.throws(() => editorUrl(`http://dev.test/${'a'.repeat(64)}/`), /HTTPS/);
   assert.equal(editorUrl(`https://dev.test/${'a'.repeat(64)}/`).hostname, 'dev.test');
+  assert.equal(parseEditorOptions(['--allow-insecure-http', '--port', '8787']).allowInsecureHttp, true);
+  assert.throws(() => parseEditorOptions(['--allow-insecure-http', '--allow-insecure-http']), /Duplicate/);
+  assert.throws(() => parseEditorOptions(['--allow-insecure-http', 'false']), /Unknown/);
+  assert.throws(() => editorNetwork({ host: 'dev.test', allowInsecureHttp: 'true' }), /boolean/);
+  assert.throws(() => editorNetwork({ allowInsecureHttp: true, tlsCert: cert, tlsKey: key }), /combined/);
+  assert.throws(() => editorNetwork({ allowInsecureHttp: true, origin: 'https://dev.test' }), /HTTP origin/);
+  assert.throws(() => editorNetwork({ host: '0.0.0.0', allowInsecureHttp: true }), /explicit/);
+  assert.equal(editorNetwork({ host: '0.0.0.0', origin: 'http://dev.test:8787', allowInsecureHttp: true }).allowInsecureHttp, true);
+  assert.equal(editorUrl(`http://dev.test/${'a'.repeat(64)}/`, { allowInsecureHttp: true }).hostname, 'dev.test');
+});
+
+test('explicit insecure HTTP supports hostname saves and discovery without persisting consent', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-http-'));
+  const input = path.join(directory, 'source.json'), output = path.join(directory, 'diagram.html');
+  fs.copyFileSync(new URL('../examples/web-app.architecture.json', import.meta.url), input);
+  const args = ['start', 'architecture', input, output, '--origin', 'http://dev.test', '--allow-insecure-http'];
+  try {
+    const session = await commandSession(args, { quiet: true });
+    const route = new URL(session.url).pathname;
+    const request = (target, { method = 'GET', headers = {}, body } = {}) => new Promise((resolve, reject) => {
+      const req = http.request({ hostname: '127.0.0.1', port: session.boundPort, path: target, method, headers: { Host: 'dev.test', ...headers } }, res => {
+        let text = ''; res.on('data', chunk => { text += chunk; });
+        res.on('end', () => resolve({ status: res.statusCode, text }));
+      });
+      req.on('error', reject); req.end(body);
+    });
+    const page = await request(route);
+    assert.equal(page.status, 200);
+    assert.equal((await request(route, { headers: { Host: 'evil.test' } })).status, 403);
+    const config = JSON.parse(page.text.match(/id="archify-save-session">(.*?)<\/script>/s)[1]);
+    const spec = JSON.parse(fs.readFileSync(input)); spec.meta.title = 'Explicit HTTP save';
+    const headers = { Origin: 'http://dev.test', 'X-Archify-Token': config.token, 'Content-Type': 'application/json' };
+    const body = JSON.stringify({ revision: config.revision, spec });
+    assert.equal((await request(config.saveUrl, { method: 'POST', headers: { ...headers, Origin: 'http://evil.test' }, body })).status, 403);
+    assert.equal((await request(config.saveUrl, { method: 'POST', headers: { ...headers, 'X-Archify-Token': 'wrong' }, body })).status, 403);
+    assert.equal((await request(config.saveUrl, { method: 'POST', headers, body })).status, 200);
+    assert.equal(JSON.parse(fs.readFileSync(input)).meta.title, spec.meta.title);
+    const cli = fileURLToPath(new URL('../bin/archify.mjs', import.meta.url));
+    const discovered = await promisify(execFile)(process.execPath, [cli, 'edit', '--allow-insecure-http', output, '--no-open', '--origin', 'http://dev.test'], { cwd: directory, windowsHide: true });
+    assert.ok(discovered.stdout.includes(session.url));
+    await assert.rejects(commandSession(args.slice(0, -1), { quiet: true }), /explicit/);
+    await assert.rejects(commandSession(args.slice(0, 4), { quiet: true }), /network settings/);
+    assert.equal(JSON.parse(fs.readFileSync(output + '.editor-settings.json')).allowInsecureHttp, undefined);
+    await commandSession(['stop', output]);
+    for (let i = 0; i < 50 && fs.existsSync(output + '.editor-session.json'); i++) await new Promise(resolve => setTimeout(resolve, 20));
+    const local = await commandSession(args.slice(0, 4), { quiet: true });
+    assert.ok(local.url.startsWith('http://127.0.0.1:'));
+    assert.equal(local.network.allowInsecureHttp, undefined);
+  } finally {
+    await commandSession(['stop', output]);
+    for (let i = 0; i < 50 && fs.existsSync(output + '.editor-session.json'); i++) await new Promise(resolve => setTimeout(resolve, 20));
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('TLS hostname service validates certificates, Host, Origin and independent control credentials', async () => {

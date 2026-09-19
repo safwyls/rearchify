@@ -71,7 +71,7 @@ export function openArtifact(target, options = {}) {
 }
 
 export function openEditorUrl(target, options = {}) {
-  const url = editorUrl(target);
+  const url = editorUrl(target, options);
   return launchTarget(url.href, options);
 }
 

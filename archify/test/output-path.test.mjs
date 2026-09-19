@@ -17,6 +17,28 @@ const workflowFixture = path.join(skillRoot, 'examples/agent-tool-call.workflow.
 const baseFixture = path.join(skillRoot, 'examples/checkout-platform.base.architecture.json');
 const headFixture = path.join(skillRoot, 'examples/checkout-platform.head.architecture.json');
 
+test('file identity comparisons preserve IDs beyond Number precision', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-large-id-'));
+  const left = path.join(directory, 'left'), right = path.join(directory, 'right');
+  fs.writeFileSync(left, 'left'); fs.writeFileSync(right, 'right');
+  const original = fs.statSync;
+  try {
+    t.mock.method(fs, 'statSync', (file, options) => {
+      const stat = original(file, options);
+      if (file === left || file === right) {
+        const exact = file === left ? 9007199254740992n : 9007199254740993n;
+        stat.ino = options?.bigint ? exact : Number(exact);
+      }
+      return stat;
+    });
+    assert.equal(pathsAlias(left, right), false);
+    assert.equal(pathsAlias(left, left), true);
+  } finally {
+    t.mock.restoreAll();
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 function run(args, cwd) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd,

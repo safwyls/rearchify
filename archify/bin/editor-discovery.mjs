@@ -61,7 +61,8 @@ export async function commandDiscover(args) {
   const positional = [], optionArgs = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--no-open') continue;
-    if (Object.hasOwn(editorOptionNames, args[i])) { optionArgs.push(args[i], args[++i]); }
+    if (args[i] === '--allow-insecure-http') optionArgs.push(args[i]);
+    else if (Object.hasOwn(editorOptionNames, args[i])) { optionArgs.push(args[i], args[++i]); }
     else positional.push(args[i]);
   }
   const explicit = parseEditorOptions(optionArgs);
@@ -87,11 +88,11 @@ export async function commandDiscover(args) {
     } finally { prompt.close(); }
   }
   const settings = { quality: chosen.quality, repoRoot: chosen.repoRoot, ...explicit };
-  const options = Object.entries(editorOptionNames).flatMap(([flag, name]) => settings[name] === undefined ? [] : [flag, String(settings[name])]);
+  const options = Object.entries(editorOptionNames).flatMap(([flag, name]) => settings[name] === undefined ? [] : name === 'allowInsecureHttp' ? (settings[name] === true ? [flag] : []) : [flag, String(settings[name])]);
   const session = await commandSession(['start', 'architecture', chosen.input, chosen.output, ...options], { quiet: true });
   console.log(`Editor: ${session.url}\nSource: ${session.input}\nStop: archify edit stop "${path.relative(process.cwd(), session.output)}"`);
   if (!args.includes('--no-open')) {
-    const opened = openEditorUrl(session.url);
+    const opened = openEditorUrl(session.url, { allowInsecureHttp: explicit.allowInsecureHttp === true });
     if (opened.status !== 'opened') console.error('Could not open a browser. Open the editor URL above.');
   }
 }
