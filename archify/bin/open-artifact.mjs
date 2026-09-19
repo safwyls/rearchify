@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { editorUrl } from './editor-network.mjs';
 
 const OPENERS = {
   darwin: {
@@ -70,8 +71,7 @@ export function openArtifact(target, options = {}) {
 }
 
 export function openEditorUrl(target, options = {}) {
-  const url = new URL(target);
-  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port || url.username || url.password || !/^\/[a-f0-9]{64}\/$/.test(url.pathname) || url.search || url.hash) throw new TypeError('Invalid local editor URL.');
+  const url = editorUrl(target);
   return launchTarget(url.href, options);
 }
 

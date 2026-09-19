@@ -99,7 +99,7 @@ File-write failure rolls back committed files, retaining recovery backups if
 rollback itself fails. These deterministic delivery checks do not include
 automated browser evidence or perceptual visual review.
 
-The service binds only to loopback, exposes one configured file pair, and uses
+The service binds to loopback by default, exposes one configured file pair, and uses
 a per-session token plus same-origin requests. Standalone downloads omit the
 live save session and continue to support offline editing. Restart the start
 command to edit and save later. Direct `deliver` calls never start a service.
@@ -191,3 +191,5 @@ After a non-empty authored reachability query, the reader may use **Export → R
 ## Truth boundary
 
 Viewer exports are communication assets. They do not replace the checked HTML, the deterministic delivery receipt, or a real visual review. Do not add a hosted service, storage surface, dependency, schema branch, or mobile product surface for these viewer-only capabilities.
+
+For explicitly requested remote access, see [hostname binding and SSH forwarding](remote-editor.md). Non-loopback binding requires TLS and exact browser-origin checks.

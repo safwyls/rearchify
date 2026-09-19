@@ -4,14 +4,15 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { startEditorServer, savedEditorSettings } from './editor-server.mjs';
 import { pathsAlias } from '../renderers/shared/output-path.mjs';
+import { editorNetwork, parseEditorOptions } from './editor-network.mjs';
 
 const self = fileURLToPath(import.meta.url);
 const statePath = output => (fs.existsSync(output) ? fs.realpathSync(output) : path.resolve(output)) + '.editor-session.json';
 const read = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
 async function request(state, action, method = 'GET') {
   // Session files are data, never permission to contact an arbitrary host.
-  const url = new URL(state.url);
-  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !/^\/[a-f0-9]{64}\/$/.test(url.pathname)) throw new Error('Invalid local editor session URL.');
+  const url = new URL(state.controlUrl || state.url);
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port || url.username || url.password || url.search || url.hash || !/^\/[a-f0-9]{64}\/$/.test(url.pathname)) throw new Error('Invalid local editor session URL.');
   const token = url.pathname.split('/')[1];
   return fetch(new URL(action, url), { method, headers: { 'X-Archify-Token': token }, signal: AbortSignal.timeout(2000), redirect: 'error' });
 }
@@ -40,18 +41,16 @@ export async function commandSession(args, { quiet = false } = {}) {
   }
   const [type, input, output, ...options] = rest;
   if (type !== 'architecture' || !input || !output) throw new Error('Usage: archify edit start architecture <input.json> <output.html> [--quality standard|showcase] [--repo-root path]');
-  const settings = { ...savedEditorSettings(input, output), input: fs.realpathSync(input), output: path.resolve(output) };
-  for (let i = 0; i < options.length; i += 2) {
-    if (!['--quality', '--repo-root'].includes(options[i]) || !options[i + 1]) throw new Error('Unknown or incomplete edit option.');
-    settings[options[i] === '--quality' ? 'quality' : 'repoRoot'] = options[i + 1];
-  }
-  if (settings.quality && !['standard', 'showcase'].includes(settings.quality)) throw new Error('Quality must be standard or showcase.');
+  const settings = { ...savedEditorSettings(input, output), input: fs.realpathSync(input), output: path.resolve(output), ...parseEditorOptions(options) };
+  const network = editorNetwork(settings);
+  Object.assign(settings, network);
   if (settings.repoRoot) settings.repoRoot = fs.realpathSync(settings.repoRoot);
   const file = statePath(output);
   if (pathsAlias(file, settings.input)) throw new Error('Editor session metadata must not overwrite the source.');
   const current = read(file);
   if (await alive(current)) {
     if (current.input !== settings.input || current.quality !== settings.quality || current.repoRoot !== settings.repoRoot) throw new Error('This output already has a service with different source or validation settings. Stop it before starting another.');
+    if (JSON.stringify(current.network || editorNetwork()) !== JSON.stringify(network)) throw new Error('This output already has different editor network settings. Stop it before changing the binding.');
     const result = { ...current, running: true, reused: true };
     if (!quiet) console.log(JSON.stringify(result));
     return result;
@@ -85,7 +84,7 @@ if (process.argv[2] === '--serve' && process.send) {
   const { settings, file } = JSON.parse(process.argv[3]);
   try {
     const session = await startEditorServer(settings);
-    const state = { ...settings, input: session.input, output: session.output, url: session.url, pid: process.pid };
+    const state = { ...settings, input: session.input, output: session.output, url: session.url, controlUrl: session.controlUrl, network: session.network, boundPort: session.port, pid: process.pid };
     fs.writeFileSync(file, JSON.stringify(state, null, 2) + '\n', { mode: 0o600 });
     const cleanup = () => { try { if (read(file)?.url === state.url) fs.unlinkSync(file); } catch {} };
     session.server.on('close', cleanup);

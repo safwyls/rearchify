@@ -26,3 +26,7 @@ node bin/archify.mjs edit stop "<output.html>"
 The low-level `deliver` command stays deterministic and does not spawn services.
 For later use from a project with the CLI on PATH, `archify edit` discovers local
 architecture diagrams and opens the editor, offering a chooser when needed.
+
+When the user requests remote access, read [remote editor access](remote-editor.md)
+and pass their explicit network options to `edit start`. Keep loopback defaults
+otherwise; never infer permission to bind all interfaces from a remote workspace.

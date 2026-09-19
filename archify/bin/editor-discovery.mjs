@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { commandSession } from './editor-session.mjs';
 import { openEditorUrl } from './open-artifact.mjs';
+import { editorOptionNames, parseEditorOptions } from './editor-network.mjs';
 
 export function discoverDiagrams(directory) {
   const root = fs.realpathSync(directory), documents = new Map(), pairs = new Map();
@@ -57,7 +58,13 @@ export function discoverDiagrams(directory) {
 }
 
 export async function commandDiscover(args) {
-  const positional = args.filter(arg => arg !== '--no-open');
+  const positional = [], optionArgs = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--no-open') continue;
+    if (Object.hasOwn(editorOptionNames, args[i])) { optionArgs.push(args[i], args[++i]); }
+    else positional.push(args[i]);
+  }
+  const explicit = parseEditorOptions(optionArgs);
   if (positional.length > 1 || positional[0]?.startsWith('-')) throw new Error('Usage: archify edit [source.json or output.html] [--no-open]');
   let choices = discoverDiagrams(process.cwd());
   if (positional[0]) {
@@ -79,7 +86,8 @@ export async function commandDiscover(args) {
       chosen = choices[index];
     } finally { prompt.close(); }
   }
-  const options = [...(chosen.quality ? ['--quality', chosen.quality] : []), ...(chosen.repoRoot ? ['--repo-root', chosen.repoRoot] : [])];
+  const settings = { quality: chosen.quality, repoRoot: chosen.repoRoot, ...explicit };
+  const options = Object.entries(editorOptionNames).flatMap(([flag, name]) => settings[name] === undefined ? [] : [flag, String(settings[name])]);
   const session = await commandSession(['start', 'architecture', chosen.input, chosen.output, ...options], { quiet: true });
   console.log(`Editor: ${session.url}\nSource: ${session.input}\nStop: archify edit stop "${path.relative(process.cwd(), session.output)}"`);
   if (!args.includes('--no-open')) {

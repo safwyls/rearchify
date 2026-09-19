@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
@@ -7,6 +8,7 @@ import { promisify } from 'node:util';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { resolveOutputPath, pathsAlias } from '../renderers/shared/output-path.mjs';
+import { editorNetwork, parseEditorOptions } from './editor-network.mjs';
 
 const run = promisify(execFile);
 const cli = fileURLToPath(new URL('./archify.mjs', import.meta.url));
@@ -25,9 +27,11 @@ export function savedEditorSettings(input, output) {
   return { quality: settings.quality, repoRoot: settings.repoRoot };
 }
 
-// One loopback session owns exactly one source/artifact pair. No client-supplied
+// One authenticated session owns exactly one source/artifact pair. No client-supplied
 // filenames, shell commands, filesystem browsing, or cross-origin access.
-export async function startEditorServer({ input, output, quality, repoRoot }) {
+export async function startEditorServer({ input, output, quality, repoRoot, ...networkOptions }) {
+  const network = editorNetwork(networkOptions);
+  const tls = network.tlsCert ? { cert: fs.readFileSync(network.tlsCert), key: fs.readFileSync(network.tlsKey), minVersion: 'TLSv1.2' } : null;
   input = fs.realpathSync(input);
   if (path.extname(input).toLowerCase() !== '.json') throw new Error('Editor source must be a JSON file.');
   output = resolveOutputPath({ requestedOutput: output, defaultOutput: 'architecture.html', inputPaths: [input] }).outputPath;
@@ -57,11 +61,13 @@ export async function startEditorServer({ input, output, quality, repoRoot }) {
   if (!fs.existsSync(output)) await deliver(input, output);
   const revision = () => hash(Buffer.concat([read(input) || Buffer.alloc(0), Buffer.from('\0'), read(output) || Buffer.alloc(0)]));
   const token = randomBytes(32).toString('hex');
-  let origin, busy = false;
+  let origin, controlOrigin, controlServer, busy = false;
   const route = `/${token}/`;
-  const server = http.createServer(async (request, response) => {
+  const handler = async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
     const reply = (status, value) => { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(value)); };
     if (request.headers.host !== new URL(origin).host) return reply(403, { error: 'Invalid host.' });
     if (request.method === 'GET' && request.url === route) {
@@ -86,8 +92,7 @@ export async function startEditorServer({ input, output, quality, repoRoot }) {
       if (request.headers['x-archify-token'] !== token || request.headers.origin && request.headers.origin !== origin) return reply(403, { error: 'Invalid save session.' });
       if (busy) return reply(409, { error: 'Delivery is running. Retry stop after it finishes.' });
       reply(200, { ok: true });
-      server.close();
-      server.closeIdleConnections?.();
+      stop();
       return;
     }
     if (request.method !== 'POST' || request.url !== `${route}save`) return reply(404, { error: 'Not found.' });
@@ -146,14 +151,42 @@ export async function startEditorServer({ input, output, quality, repoRoot }) {
       if (directory && !preserveRecovery) fs.rmSync(directory, { recursive: true, force: true });
       busy = false;
     }
+  };
+  const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
+  server.requestTimeout = 15000;
+  server.headersTimeout = 10000;
+  function stop() {
+    server.close(); server.closeIdleConnections?.();
+    controlServer?.close(); controlServer?.closeIdleConnections?.();
+  }
+  const controlToken = randomBytes(32).toString('hex');
+  controlServer = http.createServer((request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    const reply = (status, value) => { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(value)); };
+    if (request.headers.host !== new URL(controlOrigin).host || request.headers['x-archify-token'] !== controlToken || (request.headers.origin && request.headers.origin !== controlOrigin)) return reply(403, { error: 'Invalid control session.' });
+    if (request.method === 'GET' && request.url === `/${controlToken}/heartbeat`) return reply(200, { ok: true });
+    if (request.method === 'POST' && request.url === `/${controlToken}/stop`) {
+      if (busy) return reply(409, { error: 'Delivery is running. Retry stop after it finishes.' });
+      reply(200, { ok: true }); stop(); return;
+    }
+    reply(404, { error: 'Not found.' });
   });
+  // Closing the public server (including test/embedding callers) closes control.
+  server.on('close', () => { controlServer.close(); controlServer.closeIdleConnections?.(); });
   // Durable settings are separate from ephemeral process state and survive stop.
   const settingsPath = `${output}.editor-settings.json`;
   if (fs.existsSync(settingsPath) && fs.lstatSync(settingsPath).isSymbolicLink()) throw new Error('Editor settings must be a regular file.');
   fs.writeFileSync(settingsPath, JSON.stringify({ input, output, quality, repoRoot }, null, 2) + '\n', { mode: 0o600 });
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-  origin = `http://127.0.0.1:${server.address().port}`;
-  return { server, url: origin + route, input, output };
+  try {
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(network.port, network.host, resolve); });
+    const hostname = network.host.includes(':') ? `[${network.host}]` : network.host;
+    origin = network.origin || `${tls ? 'https' : 'http'}://${hostname}:${server.address().port}`;
+    // URL canonicalization removes default ports for exact browser Origin checks.
+    origin = new URL(origin).origin;
+    await new Promise((resolve, reject) => { controlServer.once('error', reject); controlServer.listen(0, '127.0.0.1', resolve); });
+    controlOrigin = `http://127.0.0.1:${controlServer.address().port}`;
+    return { server, url: origin + route, controlUrl: `${controlOrigin}/${controlToken}/`, input, output, network, port: server.address().port };
+  } catch (error) { stop(); throw error; }
 }
 
 export async function commandEdit(args) {
@@ -165,12 +198,7 @@ export async function commandEdit(args) {
   }
   const [type, input, output, ...options] = args;
   if (type !== 'architecture' || !input || !output) throw new Error('Usage: archify edit architecture <input.json> <output.html> [--quality standard|showcase] [--repo-root path]');
-  const settings = { input, output };
-  for (let i = 0; i < options.length; i += 2) {
-    if (!['--quality', '--repo-root'].includes(options[i]) || !options[i + 1]) throw new Error('Unknown or incomplete edit option.');
-    settings[options[i] === '--quality' ? 'quality' : 'repoRoot'] = options[i + 1];
-  }
-  if (settings.quality && !['standard', 'showcase'].includes(settings.quality)) throw new Error('Quality must be standard or showcase.');
+  const settings = { input, output, ...parseEditorOptions(options) };
   const session = await startEditorServer(settings);
   console.log(`Local editor: ${session.url}\nSource: ${session.input}\nOutput: ${session.output}\nKeep this process running while editing. Ctrl+C stops the save service.`);
 }

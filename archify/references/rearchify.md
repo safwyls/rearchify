@@ -30,7 +30,8 @@ the diagram. Other diagram types can be redelivered but do not gain the editor.
    layout-repair loop unless the user requests repairs.
 4. On success for a local architecture diagram, run
    `node bin/archify.mjs edit start architecture "<source.json>" "<output.html>"`
-   with the same delivery options. Return its live editor URL, the standalone
+   with the same delivery options. For explicitly requested hostname access or
+   SSH forwarding, read `references/remote-editor.md` and pass the network options. Return its live editor URL, the standalone
    output and receipt, and `node bin/archify.mjs edit stop "<output.html>"`.
    Follow the local-service fallback rules in `references/editor-handoff.md` for static-only or
    unsupported environments. Users choose **Edit layout**, **Apply & close**,

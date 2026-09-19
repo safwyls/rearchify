@@ -112,9 +112,11 @@ node archify/bin/archify.mjs edit stop diagrams/system.html
 
 打开 `edit start` 返回的地址，传入与交付相同的显式 `--quality` 和 `--repo-root`。CLI 在 PATH 上时，`archify edit` 发现项目图表并提供选择菜单；`archify edit diagrams/system.html` 指定输出。直接运行 `deliver` 不启动服务；相同配置会复用后台服务。关闭标签页不会停止进程；请在保存结束后运行 `edit stop`。
 
-服务监听 `127.0.0.1`，只处理一个源文件/HTML 组合，检查会话令牌和请求来源。`<output.html>.editor-session.json` 是私有进程状态，不应分享。校验失败保留原文件；写入失败尝试回滚，回滚失败时报告恢复备份。页面加载后磁盘内容变化会导致保存冲突；重新加载前请下载草稿。页面加载时会拒绝源 JSON 与 HTML 不一致的情况；外部修改 JSON 后请先重新运行 `deliver`。校验设置保存在私有的 `<output.html>.editor-settings.json` 中，停止服务后仍会保留。
+服务默认监听 `127.0.0.1`，只处理一个源文件/HTML 组合，检查会话令牌和请求来源。`<output.html>.editor-session.json` 是私有进程状态，不应分享。校验失败保留原文件；写入失败尝试回滚，回滚失败时报告恢复备份。页面加载后磁盘内容变化会导致保存冲突；重新加载前请下载草稿。页面加载时会拒绝源 JSON 与 HTML 不一致的情况；外部修改 JSON 后请先重新运行 `deliver`。校验设置保存在私有的 `<output.html>.editor-settings.json` 中，停止服务后仍会保留。
 
 直接打开独立 HTML 支持离线编辑，但不能覆盖源文件。**Save JSON** 下载源文件，**Download HTML** 下载不含在线会话的可编辑草稿。将下载的 JSON 保存到预期路径后，再运行 `deliver`。详见[编辑控件](archify/references/viewer-runtime.md)。
+
+**远程开发：**可使用 `--port 8787` 配合 SSH 端口转发，或通过 `--host`、`--port`、`--origin`、`--tls-cert` 和 `--tls-key` 启用直接 HTTPS。非回环绑定必须使用 TLS；网络暴露配置不会保存为默认值。详见[主机名访问与 SSH 示例](archify/references/remote-editor.md)。
 
 ## 看看 Archify 能做什么
 

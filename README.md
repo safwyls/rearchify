@@ -124,7 +124,7 @@ and offers a chooser; `archify edit diagrams/system.html` selects an output.
 Direct `deliver` never starts a service. Matching starts reuse the background
 service. Closing the tab does not stop it; run `edit stop` after any save finishes.
 
-The service binds to `127.0.0.1`, handles one source/HTML pair, and checks the session
+By default, the service binds to `127.0.0.1`, handles one source/HTML pair, and checks the session
 token and request origin. `<output.html>.editor-session.json` is private process
 state, not a shareable artifact. Validation failure preserves existing files;
 write failures attempt rollback and report recovery backups if rollback fails.
@@ -137,6 +137,11 @@ Opening standalone HTML directly supports offline editing but cannot overwrite
 source files. **Save JSON** downloads source; **Download HTML** creates an editable
 draft without the live session. Save downloaded JSON to the intended source path,
 then rerun `deliver`. See [editor controls](archify/references/viewer-runtime.md).
+
+**Remote development:** use SSH port forwarding with `--port 8787`, or direct HTTPS
+with `--host`, `--port`, `--origin`, `--tls-cert`, and `--tls-key`. Non-loopback
+binding requires TLS; network exposure is never remembered as a default.
+See [hostname access and SSH examples](archify/references/remote-editor.md).
 
 ## See Archify in action
 
